@@ -108,7 +108,7 @@ export default function TenantsPage() {
           <Input label="Admin password" type="password" {...register('adminPassword', { required: true })} />
           <div>
             <label className="text-sm font-medium text-gray-700">Plan</label>
-            <select className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('plan')}>
+            <select className="mt-1 bg-blue-500 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('plan')}>
               <option value="basic">Basic</option>
               <option value="pro">Pro</option>
               <option value="enterprise">Enterprise</option>
@@ -116,7 +116,7 @@ export default function TenantsPage() {
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2 pt-2">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
+            <Button type="submit" disabled={isSubmitting} className="flex-1 bg-blue-500">
               {isSubmitting ? 'Creating…' : 'Create tenant'}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
