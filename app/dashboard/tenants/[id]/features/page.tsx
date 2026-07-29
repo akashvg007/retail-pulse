@@ -1,0 +1,98 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { FEATURE_META, ALL_FEATURE_KEYS, type FeatureKey } from '@/types/features'
+import { ArrowLeft, Save } from 'lucide-react'
+import Link from 'next/link'
+
+export default function TenantFeaturesPage() {
+  const { id: tenantId } = useParams<{ id: string }>()
+  const [features, setFeatures] = useState<Record<FeatureKey, boolean>>({} as any)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/features/tenant/${tenantId}`)
+      .then((r) => r.json())
+      .then((json) => { setFeatures(json.data ?? {}); setLoading(false) })
+  }, [tenantId])
+
+  function toggle(key: FeatureKey) {
+    setFeatures((prev) => ({ ...prev, [key]: !prev[key] }))
+    setSaved(false)
+  }
+
+  async function save() {
+    setSaving(true)
+    await fetch(`/api/features/tenant/${tenantId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ features }),
+    })
+    setSaving(false)
+    setSaved(true)
+  }
+
+  return (
+    <div className="p-6 space-y-6 max-w-2xl">
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard/tenants">
+          <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50">
+            <ArrowLeft size={16} />
+          </button>
+        </Link>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Feature Access</h1>
+          <p className="text-sm text-gray-500">Toggle features for this tenant</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : (
+        <div className="space-y-2">
+          {ALL_FEATURE_KEYS.map((key) => {
+            const meta = FEATURE_META[key]
+            const enabled = features[key] ?? false
+            return (
+              <div
+                key={key}
+                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{meta.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{meta.description}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Badge variant={enabled ? 'green' : 'gray'}>{enabled ? 'Enabled' : 'Disabled'}</Badge>
+                  <button
+                    onClick={() => toggle(key)}
+                    className={`relative h-6 w-11 rounded-full transition-colors ${
+                      enabled ? 'bg-indigo-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        enabled ? 'translate-x-5' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <Button onClick={save} disabled={saving}>
+          <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
+        </Button>
+        {saved && <p className="text-sm text-green-600">Saved ✓</p>}
+      </div>
+    </div>
+  )
+}
