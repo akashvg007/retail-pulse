@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
 import { Plus, Trash2 } from 'lucide-react'
+import ModalFooter from '@/components/ModalFooter';
 
 type StaffForm = z.infer<typeof staffSchema>
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -47,7 +48,7 @@ export default function StaffPage() {
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">Staff</h1>
-          <Button onClick={() => { reset(); setOpen(true) }} size="sm">
+          <Button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onClick={() => { reset(); setOpen(true) }} size="sm">
             <Plus size={14} /> Add staff
           </Button>
         </div>
@@ -77,12 +78,9 @@ export default function StaffPage() {
           <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
           <Input label="Password" type="password" error={errors.password?.message} {...register('password')} />
           <Input label="Department" {...register('department')} />
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? 'Adding…' : 'Add staff'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
+          <ModalFooter primaryButton={{ label: 'Add staff', loadingText: 'Adding…' }}
+            secondaryButton={{ label: 'Cancel', onClick: () => setOpen(false) }}
+          />
         </form>
       </Modal>
     </FeatureGate>
