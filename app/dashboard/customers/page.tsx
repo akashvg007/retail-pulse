@@ -65,11 +65,11 @@ export default function CustomersPage() {
 
         <Table
           columns={[
-            { key: 'name', label: 'Name' },
-            { key: 'email', label: 'Email' },
-            { key: 'phone', label: 'Phone' },
-            { key: 'gstNumber', label: 'GST No.' },
-            { key: '_id', label: '', render: (_: string, row: CustomerForm) => (
+            { key: 'name', from:'customer', label: 'Name' },
+            { key: 'email',from:'customer', label: 'Email' },
+            { key: 'phone',from:'customer', label: 'Phone' },
+            { key: 'gstNumber', from:'customer', label: 'GST No.' },
+            { key: '_id',from:'customer', label: '', render: (_: string, row: CustomerForm) => (
               <div className="flex gap-2">
                 <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600"><Pencil size={14} /></button>
                 <button onClick={() => deleteCustomer(row?.id ?? '')} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>

@@ -41,16 +41,16 @@ export default function InvoicesPage() {
 
         <Table
           columns={[
-            { key: 'invoiceNo', label: 'Invoice #' },
-            { key: 'customerId', label: 'Customer', render: (_, row) =>
+            { key: 'invoiceNo',from:'invoice', label: 'Invoice #' },
+            { key: 'customerId',from:'invoice', label: 'Customer', render: (_, row) =>
               row.customerId?.name ?? row.customerSnapshot?.name ?? '—'
             },
-            { key: 'total', label: 'Amount', render: (v) => formatCurrency(v) },
-            { key: 'status', label: 'Status', render: (v) => (
+            { key: 'total', from:'invoice', label: 'Amount', render: (v) => formatCurrency(v) },
+            { key: 'status', from:'invoice', label: 'Status', render: (v) => (
               <Badge variant={invoiceStatusBadge(v)}>{v}</Badge>
             )},
-            { key: 'createdAt', label: 'Date', render: (v) => formatDate(v) },
-            { key: '_id', label: '', render: (id, row) => (
+            { key: 'createdAt',from:'invoice', label: 'Date', render: (v) => formatDate(v) },
+            { key: '_id',from:'invoice', label: '', render: (id, row) => (
               <div className="flex gap-2">
                 <Link href={`/dashboard/invoices/${id}`}>
                   <button className="text-gray-400 hover:text-indigo-600"><Eye size={14} /></button>

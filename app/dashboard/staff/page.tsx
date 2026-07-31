@@ -132,13 +132,13 @@ export default function StaffPage() {
 
         <Table
           columns={[
-            { key: 'userId', label: 'Name', render: (v) => v?.name ?? '—' },
-            { key: 'userId', label: 'Email', render: (v) => v?.email ?? '—' },
-            { key: 'department', label: 'Department' },
-            { key: 'userId', label: 'Status', render: (v) => (
+            { key: 'userId',from:'staff', label: 'Name', render: (v) => v?.name ?? '—' },
+            { key: 'userId',from:'staff', label: 'Email', render: (v) => v?.email ?? '—' },
+            { key: 'department',from:'staff', label: 'Department' },
+            { key: 'userId',from:'staff', label: 'Status', render: (v) => (
               <Badge variant={v?.active ? 'green' : 'red'}>{v?.active ? 'Active' : 'Inactive'}</Badge>
             )},
-            { key: '_id', label: '', render: (id, row) => (
+            { key: '_id',from:'staff', label: '', render: (id, row) => (
               <div className="flex gap-2">
                 <button
                   title="Manage feature access"

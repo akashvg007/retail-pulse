@@ -17,13 +17,13 @@ export default function SubscriptionsPage() {
         <h1 className="text-xl font-bold text-gray-900">Subscriptions</h1>
         <Table
           columns={[
-            { key: 'plan', label: 'Plan' },
-            { key: 'status', label: 'Status', render: (v) => (
+            { key: 'plan',from:'subscription', label: 'Plan' },
+            { key: 'status',from:'subscription', label: 'Status', render: (v) => (
               <Badge variant={v === 'active' ? 'green' : v === 'paused' ? 'yellow' : 'red'}>{v}</Badge>
             )},
-            { key: 'startDate', label: 'Start Date', render: (v) => formatDate(v) },
-            { key: 'endDate', label: 'End Date', render: (v) => v ? formatDate(v) : '—' },
-            { key: 'razorpaySubscriptionId', label: 'Razorpay ID' },
+            { key: 'startDate',from:'subscription', label: 'Start Date', render: (v) => formatDate(v) },
+            { key: 'endDate',from:'subscription', label: 'End Date', render: (v) => v ? formatDate(v) : '—' },
+            { key: 'razorpaySubscriptionId',from:'subscription', label: 'Razorpay ID' },
           ]}
           data={subscriptions}
           emptyMessage={isLoading ? 'Loading…' : 'No active subscriptions.'}

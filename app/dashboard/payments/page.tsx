@@ -27,13 +27,13 @@ export default function PaymentsPage() {
         <h1 className="text-xl font-bold text-gray-900">Payments</h1>
         <Table
           columns={[
-            { key: 'invoiceNo', label: 'Invoice #' },
-            { key: 'customerId', label: 'Customer', render: (_, row) =>
+            { key: 'invoiceNo',from:'payment', label: 'Invoice #' },
+            { key: 'customerId',from:'payment', label: 'Customer', render: (_, row) =>
               row.customerId?.name ?? row.customerSnapshot?.name ?? '—'
             },
-            { key: 'total', label: 'Amount', render: (v) => formatCurrency(v) },
-            { key: 'status', label: 'Status', render: () => <Badge variant="green">Paid</Badge> },
-            { key: 'updatedAt', label: 'Date', render: (v) => formatDate(v) },
+            { key: 'total',from:'payment', label: 'Amount', render: (v) => formatCurrency(v) },
+            { key: 'status',from:'payment', label: 'Status', render: () => <Badge variant="green">Paid</Badge> },
+            { key: 'updatedAt',from:'payment', label: 'Date', render: (v) => formatDate(v) },
           ]}
           data={invoices}
           emptyMessage={isLoading ? 'Loading…' : 'No payments recorded yet.'}

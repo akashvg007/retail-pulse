@@ -72,14 +72,14 @@ export default function InventoryPage() {
 
         <Table
           columns={[
-            { key: 'name', label: 'Name' },
-            { key: 'sku', label: 'SKU' },
-            { key: 'category', label: 'Category' },
-            { key: 'price', label: 'Price', render: (v) => formatCurrency(v) },
-            { key: 'stockQty', label: 'Stock', render: (v) => (
+            { key: 'name',from:'inventory', label: 'Name' },
+            { key: 'sku',from:'inventory', label: 'SKU' },
+            { key: 'category',from:'inventory', label: 'Category' },
+            { key: 'price',from:'inventory', label: 'Price', render: (v) => formatCurrency(v) },
+            { key: 'stockQty',from:'inventory', label: 'Stock', render: (v) => (
               <Badge variant={v > 0 ? 'green' : 'red'}>{v} units</Badge>
             )},
-            { key: '_id', label: '', render: (_, row) => (
+            { key: '_id',from:'inventory', label: '', render: (_, row) => (
               <div className="flex gap-2">
                 <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600">
                   <Pencil size={14} />
