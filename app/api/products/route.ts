@@ -6,9 +6,11 @@ import { productSchema } from '@/lib/validations'
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth()
+  console.log("ctx ==> ", ctx);
   if (ctx instanceof NextResponse) return ctx
 
   const denied = await requireFeature(ctx, 'inventory')
+  console.log("denied ==> ", denied);
   if (denied) return denied
 
   await connectDB()
@@ -24,6 +26,7 @@ export async function GET(req: NextRequest) {
     Product.find(filter).skip((page - 1) * limit).limit(limit).sort({ createdAt: -1 }).lean(),
     Product.countDocuments(filter),
   ])
+  console.log("data ==> ", data);
 
   return NextResponse.json({ data, total, page, limit })
 }

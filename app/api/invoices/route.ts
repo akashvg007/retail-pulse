@@ -78,6 +78,8 @@ export async function POST(req: NextRequest) {
   const invoice = await Invoice.create({
     tenantId: ctx.tenantId,
     invoiceNo,
+    staffName: ctx.name,
+    staffId: ctx.userId,
     customerId: customerId || undefined,
     customerSnapshot,
     items,

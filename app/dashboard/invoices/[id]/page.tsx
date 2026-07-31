@@ -47,6 +47,7 @@ export default function InvoiceDetailPage() {
               <div>
                 <p className="text-2xl font-bold text-gray-900">{invoice.invoiceNo}</p>
                 <p className="text-sm text-gray-500 mt-1">Issued {formatDate(invoice.createdAt)}</p>
+                <p className="text-sm text-gray-500 mt-1">Issued by {invoice.staffName}</p>
                 {invoice.dueDate && (
                   <p className="text-sm text-gray-500">Due {formatDate(invoice.dueDate)}</p>
                 )}

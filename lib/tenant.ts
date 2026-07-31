@@ -7,16 +7,19 @@ import type { FeatureKey } from '@/types/features'
 export interface SessionContext {
   userId: string
   tenantId: string
+  name?: string
   role: UserRole
 }
 
 export async function requireAuth(): Promise<SessionContext | NextResponse> {
   const session = await auth()
+  console.log("session ==> ", session);
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   return {
     userId: session.user.id,
+    name: session?.user?.name || 'staff1',
     tenantId: session.user.tenantId ?? '',
     role: session.user.role,
   }
