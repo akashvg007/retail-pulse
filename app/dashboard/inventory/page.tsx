@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import useSWR, { mutate } from 'swr'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { productSchema } from '@/lib/validations'
 import { z } from 'zod'
@@ -22,10 +22,10 @@ export default function InventoryPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ProductForm | null>(null)
   const { data, isLoading } = useSWR('/api/products?limit=50', fetcher)
-  const products = data?.data ?? []
+  const products = (data?.data ?? []) as ProductForm[]
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProductForm>({
-    resolver: zodResolver(productSchema),
+    resolver: zodResolver(productSchema) as Resolver<ProductForm>,
   })
 
   function openCreate() {
@@ -84,7 +84,7 @@ export default function InventoryPage() {
                 <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600">
                   <Pencil size={14} />
                 </button>
-                <button onClick={() => deleteProduct(row._id)} className="text-gray-400 hover:text-red-600">
+                <button onClick={() => deleteProduct(row._id!)} className="text-gray-400 hover:text-red-600">
                   <Trash2 size={14} />
                 </button>
               </div>

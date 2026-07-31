@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { requireAuth } from '@/lib/tenant'
-import { hasFeature } from '@/lib/features'
+import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Invoice } from '@/models/Invoice'
 
 export async function GET(
@@ -10,9 +9,8 @@ export async function GET(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params
@@ -29,9 +27,8 @@ export async function PATCH(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   const body = await req.json()
   await connectDB()
@@ -51,9 +48,8 @@ export async function DELETE(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params

@@ -5,6 +5,7 @@ import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
+import type { TooltipValueType } from 'recharts'
 
 const salesData = [
   { month: 'Jan', revenue: 42000 }, { month: 'Feb', revenue: 58000 },
@@ -34,7 +35,7 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, 'Revenue']} />
+                  <Tooltip formatter={(v: TooltipValueType | undefined) => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']} />
                   <Line type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>

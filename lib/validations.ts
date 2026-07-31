@@ -56,4 +56,5 @@ export const staffSchema = z.object({
   password: z.string().min(8),
   department: z.string().optional(),
   permissions: z.array(z.string()).default([]),
+  features: z.array(z.string()).default([]),
 })

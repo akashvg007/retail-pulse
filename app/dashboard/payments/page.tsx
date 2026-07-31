@@ -7,9 +7,19 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
+interface PaymentRow {
+  _id: string
+  invoiceNo: string
+  customerId?: { name: string } | null
+  customerSnapshot?: { name: string } | null
+  total: number
+  status: string
+  updatedAt: string
+}
+
 export default function PaymentsPage() {
   const { data, isLoading } = useSWR('/api/invoices?status=paid&limit=50', fetcher)
-  const invoices = data?.data ?? []
+  const invoices = (data?.data ?? []) as PaymentRow[]
 
   return (
     <FeatureGate feature="payments" fallback={<LockedPage />}>
@@ -18,7 +28,7 @@ export default function PaymentsPage() {
         <Table
           columns={[
             { key: 'invoiceNo', label: 'Invoice #' },
-            { key: 'customerId', label: 'Customer', render: (v, row) =>
+            { key: 'customerId', label: 'Customer', render: (_, row) =>
               row.customerId?.name ?? row.customerSnapshot?.name ?? '—'
             },
             { key: 'total', label: 'Amount', render: (v) => formatCurrency(v) },

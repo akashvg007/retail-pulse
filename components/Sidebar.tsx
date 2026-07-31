@@ -10,12 +10,13 @@ import {
 import { cn } from '@/lib/utils'
 import { useFeature } from '@/contexts/FeatureContext'
 import type { Session } from 'next-auth'
+import type { FeatureKey } from '@/types/features'
 
 interface NavItem {
   href: string
   label: string
   icon: React.ElementType
-  feature?: string
+  feature?: FeatureKey
   superAdminOnly?: boolean
 }
 
@@ -38,7 +39,8 @@ const superAdminItems: NavItem[] = [
 
 function NavLink({ item }: { item: NavItem }) {
   const pathname = usePathname()
-  const featureEnabled = item.feature ? useFeature(item.feature as any) : true
+  const featureFlag = useFeature(item.feature)
+  const featureEnabled = !item.feature || featureFlag
   if (!featureEnabled) return null
 
   const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))

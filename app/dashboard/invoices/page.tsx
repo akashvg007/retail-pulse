@@ -10,9 +10,19 @@ import Link from 'next/link'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
+interface InvoiceRow {
+  _id: string
+  invoiceNo: string
+  customerId?: { name: string } | null
+  customerSnapshot?: { name: string } | null
+  total: number
+  status: string
+  createdAt: string
+}
+
 export default function InvoicesPage() {
   const { data, isLoading } = useSWR('/api/invoices?limit=50', fetcher)
-  const invoices = data?.data ?? []
+  const invoices = (data?.data ?? []) as InvoiceRow[]
 
   async function sendInvoice(id: string) {
     await fetch(`/api/invoices/${id}/send`, { method: 'POST' })
@@ -32,7 +42,7 @@ export default function InvoicesPage() {
         <Table
           columns={[
             { key: 'invoiceNo', label: 'Invoice #' },
-            { key: 'customerId', label: 'Customer', render: (v, row) =>
+            { key: 'customerId', label: 'Customer', render: (_, row) =>
               row.customerId?.name ?? row.customerSnapshot?.name ?? '—'
             },
             { key: 'total', label: 'Amount', render: (v) => formatCurrency(v) },
