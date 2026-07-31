@@ -36,9 +36,15 @@ interface CustomerData {
   phone?: string
 }
 
+type PaymentOption = 'upi' | 'cash'
+
 export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [paying, setPaying] = useState(false)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+  const [paymentOption, setPaymentOption] = useState<PaymentOption>('upi')
+  const [cashReceived, setCashReceived] = useState('')
+  const [paymentError, setPaymentError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
@@ -124,53 +130,76 @@ export default function POSPage() {
   const tax = cart.reduce((sum, i) => sum + (i.price * i.qty * i.taxRate) / 100, 0)
   const total = subtotal + tax
 
-  async function checkout() {
-    if (cart.length === 0) return
-    setPaying(true)
-    try {
-      // Create invoice
-      const items = cart.map((i) => ({
-        name: i.name,
-        qty: i.qty,
-        price: i.price,
-        taxRate: i.taxRate,
-        total: i.price * i.qty,
-      }))
-      const invoiceRes = await fetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items, discount: 0, customerId: selectedCustomerId || undefined }),
-      })
+  const cashAmount = Number(cashReceived || 0)
+  const cashBalance = cashAmount - total
 
-      if (!invoiceRes.ok) {
-        const invoiceError = await invoiceRes.json().catch(() => ({}))
-        throw new Error(invoiceError?.error ?? 'Unable to create invoice')
-      }
+  function resetPaymentState() {
+    setPaymentOpen(false)
+    setPaymentOption('upi')
+    setCashReceived('')
+    setPaymentError('')
+  }
 
-      const { data: invoice } = await invoiceRes.json()
+  function clearSaleState() {
+    setCart([])
+    setSelectedCustomerId('')
+    setCustomerSearch('')
+  }
 
-      // Create Razorpay order
-      const orderRes = await fetch('/api/payments/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId: invoice._id }),
-      })
+  function openPaymentModal() {
+    if (cart.length === 0 || paying) return
+    setPaymentOption('upi')
+    setCashReceived(total.toFixed(2))
+    setPaymentError('')
+    setPaymentOpen(true)
+  }
 
-      if (!orderRes.ok) {
-        const orderError = await orderRes.json().catch(() => ({}))
-        throw new Error(orderError?.error ?? 'Unable to create payment order')
-      }
+  async function createInvoice() {
+    const items = cart.map((i) => ({
+      name: i.name,
+      qty: i.qty,
+      price: i.price,
+      taxRate: i.taxRate,
+      total: i.price * i.qty,
+    }))
+    const invoiceRes = await fetch('/api/invoices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, discount: 0, customerId: selectedCustomerId || undefined }),
+    })
 
-      const { data: order } = await orderRes.json()
+    if (!invoiceRes.ok) {
+      const invoiceError = await invoiceRes.json().catch(() => ({}))
+      throw new Error(invoiceError?.error ?? 'Unable to create invoice')
+    }
 
-      // Open Razorpay checkout
-      const Razorpay = (window as any).Razorpay
-      if (!Razorpay) {
-        alert('Razorpay SDK not loaded. Add it to your HTML <head>.')
-        return
-      }
+    const { data: invoice } = await invoiceRes.json()
+    return invoice
+  }
 
-      new Razorpay({
+  async function processUPIPayment() {
+    const invoice = await createInvoice()
+
+    const orderRes = await fetch('/api/payments/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoiceId: invoice._id }),
+    })
+
+    if (!orderRes.ok) {
+      const orderError = await orderRes.json().catch(() => ({}))
+      throw new Error(orderError?.error ?? 'Unable to create payment order')
+    }
+
+    const { data: order } = await orderRes.json()
+
+    const Razorpay = (window as any).Razorpay
+    if (!Razorpay) {
+      throw new Error('Razorpay SDK not loaded. Add it to your HTML <head>.')
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const payment = new Razorpay({
         key: order.keyId,
         amount: order.amount,
         currency: order.currency,
@@ -178,19 +207,74 @@ export default function POSPage() {
         name: 'RetailPulse',
         description: `Invoice ${invoice.invoiceNo}`,
         handler: async (response: any) => {
-          await fetch('/api/payments/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...response, invoiceId: invoice._id }),
-          })
-          setCart([])
-          setSelectedCustomerId('')
-          setCustomerSearch('')
-          alert('Payment successful!')
+          try {
+            const verifyRes = await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...response, invoiceId: invoice._id }),
+            })
+            if (!verifyRes.ok) {
+              const verifyError = await verifyRes.json().catch(() => ({}))
+              throw new Error(verifyError?.error ?? 'Unable to verify payment')
+            }
+            clearSaleState()
+            resolve()
+          } catch (error) {
+            reject(error)
+          }
         },
-      }).open()
+      })
+
+      payment.on('payment.failed', () => {
+        reject(new Error('Payment failed. Please try again.'))
+      })
+      payment.open()
+    })
+
+    alert('Payment successful!')
+  }
+
+  async function processCashPayment() {
+    if (!Number.isFinite(cashAmount) || cashAmount <= 0) {
+      throw new Error('Enter a valid cash amount')
+    }
+    if (cashAmount < total) {
+      throw new Error('Cash amount is less than total')
+    }
+
+    const invoice = await createInvoice()
+    const res = await fetch('/api/payments/cash', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoiceId: invoice._id, amountReceived: cashAmount }),
+    })
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload?.error ?? 'Unable to capture cash payment')
+    }
+
+    clearSaleState()
+    alert(`Payment successful! Balance: ${formatCurrency(cashBalance)}`)
+  }
+
+  async function confirmPayment() {
+    if (cart.length === 0) return
+    setPaying(true)
+    setPaymentError('')
+    try {
+      if (paymentOption === 'cash') {
+        await processCashPayment()
+      } else {
+        await processUPIPayment()
+      }
+      resetPaymentState()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Unable to process payment')
+      const message = error instanceof Error ? error.message : 'Unable to process payment'
+      setPaymentError(message)
+      if (paymentOption === 'upi') {
+        alert(message)
+      }
     } finally {
       setPaying(false)
     }
@@ -411,12 +495,111 @@ export default function POSPage() {
             <div className="flex justify-between text-base font-bold text-gray-900">
               <span>Total</span><span>{formatCurrency(total)}</span>
             </div>
-            <Button className="w-full mt-2" disabled={cart.length === 0 || paying} onClick={checkout}>
+            <Button className="w-full mt-2" disabled={cart.length === 0 || paying} onClick={openPaymentModal}>
               <CreditCard size={15} /> {paying ? 'Processing…' : 'Pay now'}
             </Button>
           </div>
         </div>
       </div>
+
+      <Modal
+        open={paymentOpen}
+        onClose={() => {
+          if (paying) return
+          resetPaymentState()
+        }}
+        title="Select payment option"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <p className="text-xs uppercase tracking-wide text-gray-500">Payable amount</p>
+            <p className="text-lg font-semibold text-gray-900">{formatCurrency(total)}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentOption('upi')
+                setPaymentError('')
+              }}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                paymentOption === 'upi'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              UPI
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentOption('cash')
+                setPaymentError('')
+              }}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                paymentOption === 'cash'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Cash
+            </button>
+          </div>
+
+          {paymentOption === 'cash' && (
+            <div className="space-y-2 rounded-lg border border-gray-200 px-3 py-3">
+              <Input
+                label="Amount received"
+                type="number"
+                min={0}
+                step="0.01"
+                value={cashReceived}
+                onChange={(e) => {
+                  setCashReceived(e.target.value)
+                  setPaymentError('')
+                }}
+                placeholder="Enter amount given by customer"
+              />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Balance</span>
+                <span className={cashBalance < 0 ? 'font-semibold text-red-600' : 'font-semibold text-green-700'}>
+                  {formatCurrency(cashBalance)}
+                </span>
+              </div>
+              {cashBalance < 0 && (
+                <p className="text-xs text-red-600">Received amount is less than total payable amount.</p>
+              )}
+            </div>
+          )}
+
+          {paymentError && <p className="text-xs text-red-600">{paymentError}</p>}
+
+          <div className="flex gap-2 pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              className="text-black"
+              onClick={resetPaymentState}
+              disabled={paying}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={confirmPayment}
+              disabled={
+                paying ||
+                cart.length === 0 ||
+                (paymentOption === 'cash' && (!Number.isFinite(cashAmount) || cashAmount < total))
+              }
+            >
+              {paying ? 'Processing…' : 'Confirm payment'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal open={customerOpen} onClose={() => setCustomerOpen(false)} title="Create customer">
         <form onSubmit={createCustomer} className="space-y-3">
