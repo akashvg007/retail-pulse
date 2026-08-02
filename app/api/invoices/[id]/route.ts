@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
+import { Customer } from '@/models/Customer'
 import { Invoice } from '@/models/Invoice'
 
 export async function GET(
@@ -33,9 +34,29 @@ export async function PATCH(
   const body = await req.json()
   await connectDB()
   const { id } = await params
+
+  const update: Record<string, unknown> = { ...body }
+  if (Object.prototype.hasOwnProperty.call(body, 'customerId')) {
+    const customerId = body.customerId === '' ? undefined : body.customerId
+    update.customerId = customerId
+
+    if (customerId) {
+      const customer = await Customer.findOne({ _id: customerId, tenantId: ctx.tenantId }).lean()
+      update.customerSnapshot = customer
+        ? {
+            name: customer.name,
+            email: customer.email,
+            gstNumber: customer.gstNumber,
+          }
+        : undefined
+    } else {
+      update.customerSnapshot = undefined
+    }
+  }
+
   const invoice = await Invoice.findOneAndUpdate(
     { _id: id, tenantId: ctx.tenantId },
-    body,
+    update,
     { new: true }
   ).lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })

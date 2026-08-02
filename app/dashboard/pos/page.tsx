@@ -36,7 +36,21 @@ interface CustomerData {
   phone?: string
 }
 
-type PaymentOption = 'upi' | 'cash'
+type PaymentOption = 'upi' | 'cash' | 'credit'
+
+function getDefaultCreditDueDate() {
+  const date = new Date()
+  date.setDate(date.getDate() + 7)
+  return date.toISOString().split('T')[0]
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
 
 export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([])
@@ -44,6 +58,7 @@ export default function POSPage() {
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentOption, setPaymentOption] = useState<PaymentOption>('upi')
   const [cashReceived, setCashReceived] = useState('')
+  const [creditDueDate, setCreditDueDate] = useState(getDefaultCreditDueDate())
   const [paymentError, setPaymentError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
@@ -137,6 +152,7 @@ export default function POSPage() {
     setPaymentOpen(false)
     setPaymentOption('upi')
     setCashReceived('')
+    setCreditDueDate(getDefaultCreditDueDate())
     setPaymentError('')
   }
 
@@ -150,6 +166,7 @@ export default function POSPage() {
     if (cart.length === 0 || paying) return
     setPaymentOption('upi')
     setCashReceived(total.toFixed(2))
+    setCreditDueDate(getDefaultCreditDueDate())
     setPaymentError('')
     setPaymentOpen(true)
   }
@@ -258,6 +275,23 @@ export default function POSPage() {
     alert(`Payment successful! Balance: ${formatCurrency(cashBalance)}`)
   }
 
+  async function processCreditSale() {
+    const invoice = await createInvoice()
+    const res = await fetch(`/api/invoices/${invoice._id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'sent', dueDate: creditDueDate }),
+    })
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload?.error ?? 'Unable to create credit sale')
+    }
+
+    clearSaleState()
+    alert(`Credit sale created successfully. Due date: ${formatDate(creditDueDate)}`)
+  }
+
   async function confirmPayment() {
     if (cart.length === 0) return
     setPaying(true)
@@ -265,6 +299,8 @@ export default function POSPage() {
     try {
       if (paymentOption === 'cash') {
         await processCashPayment()
+      } else if (paymentOption === 'credit') {
+        await processCreditSale()
       } else {
         await processUPIPayment()
       }
@@ -516,7 +552,7 @@ export default function POSPage() {
             <p className="text-lg font-semibold text-gray-900">{formatCurrency(total)}</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => {
@@ -545,6 +581,20 @@ export default function POSPage() {
             >
               Cash
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentOption('credit')
+                setPaymentError('')
+              }}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                paymentOption === 'credit'
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Credit
+            </button>
           </div>
 
           {paymentOption === 'cash' && (
@@ -570,6 +620,18 @@ export default function POSPage() {
               {cashBalance < 0 && (
                 <p className="text-xs text-red-600">Received amount is less than total payable amount.</p>
               )}
+            </div>
+          )}
+
+          {paymentOption === 'credit' && (
+            <div className="space-y-2 rounded-lg border border-gray-200 px-3 py-3">
+              <Input
+                label="Due date"
+                type="date"
+                value={creditDueDate}
+                onChange={(e) => setCreditDueDate(e.target.value)}
+              />
+              <p className="text-xs text-gray-500">This will create an invoice for the customer and mark it as a credit sale.</p>
             </div>
           )}
 
