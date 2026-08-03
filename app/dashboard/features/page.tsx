@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { FEATURE_META, ALL_FEATURE_KEYS, type FeatureKey } from '@/types/features'
+import { FEATURE_META, type FeatureKey } from '@/types/features'
+import ToggleSlider from '@/components/ToggleSlider';
 
 interface PlatformFlag {
   key: FeatureKey
@@ -28,7 +28,6 @@ export default function FeatureFlagsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, [field]: value }),
     })
-    const json = await res.json()
     if (res.ok) {
       setFlags((prev) => prev.map((f) => f.key === key ? { ...f, [field]: value } : f))
     }
@@ -44,8 +43,8 @@ export default function FeatureFlagsPage() {
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Enabling a feature globally makes it available to all tenants that don't have an explicit override.
-        Use per-tenant feature access to control individual tenants.
+        {`Enabling a feature globally makes it available to all tenants that don't have an explicit override.
+        Use per-tenant feature access to control individual tenants.`}
       </div>
 
       {loading ? (
@@ -62,24 +61,20 @@ export default function FeatureFlagsPage() {
                 <p className="text-xs text-gray-500 mt-0.5">{FEATURE_META[flag.key]?.description}</p>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Beta</span>
-                  <button
-                    onClick={() => toggle(flag.key, 'beta', !flag.beta)}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${flag.beta ? 'bg-yellow-400' : 'bg-gray-200'}`}
-                  >
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${flag.beta ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Global</span>
-                  <button
-                    onClick={() => toggle(flag.key, 'globalEnabled', !flag.globalEnabled)}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${flag.globalEnabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                  >
-                    <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${flag.globalEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                  </button>
-                </div>
+                <ToggleSlider 
+                  toggleKey={flag.key} 
+                  field="beta" 
+                  primaryColor="bg-yellow-400" 
+                  isEnabled={flag.beta} 
+                  label="Beta" 
+                  toggle={toggle} />
+                <ToggleSlider 
+                  toggleKey={flag.key} 
+                  field="globalEnabled" 
+                  primaryColor="bg-indigo-600" 
+                  isEnabled={flag.globalEnabled} 
+                  label="Global" 
+                  toggle={toggle} />
               </div>
             </div>
           ))}

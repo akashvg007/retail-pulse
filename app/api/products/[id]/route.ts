@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { requireAuth } from '@/lib/tenant'
-import { hasFeature } from '@/lib/features'
+import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Product } from '@/models/Product'
 import { productSchema } from '@/lib/validations'
 
@@ -11,9 +10,8 @@ export async function GET(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'inventory')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'inventory')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params
@@ -28,9 +26,8 @@ export async function PATCH(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'inventory')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'inventory')
+  if (denied) return denied
 
   const body = await req.json()
   const parsed = productSchema.partial().safeParse(body)
@@ -53,9 +50,8 @@ export async function DELETE(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'inventory')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'inventory')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params

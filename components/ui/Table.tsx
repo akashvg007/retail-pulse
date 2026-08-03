@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils'
 
 interface Column<T> {
   key: keyof T | string
+  from: string
   label: string
   render?: (value: any, row: T) => React.ReactNode
   className?: string
@@ -29,7 +30,7 @@ export function Table<T extends Record<string, any>>({
           <tr>
             {columns.map((col) => (
               <th
-                key={String(col.key)}
+                key={String(col.key)+col.from}
                 className={cn(
                   'px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500',
                   col.className

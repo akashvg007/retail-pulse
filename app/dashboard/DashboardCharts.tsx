@@ -1,25 +1,29 @@
 'use client'
-import useSWR from 'swr'
+
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
 } from 'recharts'
+import type { TooltipValueType } from 'recharts'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+type RevenueChartPoint = {
+  month: string
+  revenue: number
+}
 
-// Placeholder chart data — replace with real aggregation endpoint
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul']
-const revenueData = MONTHS.map((month, i) => ({
-  month,
-  revenue: Math.floor(Math.random() * 50000 + 20000 * (i + 1) * 0.3),
-}))
-const invoiceData = MONTHS.map((month) => ({
-  month,
-  paid: Math.floor(Math.random() * 20 + 10),
-  pending: Math.floor(Math.random() * 10 + 2),
-}))
+type InvoiceStatusChartPoint = {
+  month: string
+  paid: number
+  pending: number
+}
 
-export function DashboardCharts({ tenantId }: { tenantId: string }) {
+export function DashboardCharts({
+  revenueData,
+  invoiceData,
+}: {
+  revenueData: RevenueChartPoint[]
+  invoiceData: InvoiceStatusChartPoint[]
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <Card>
@@ -32,7 +36,7 @@ export function DashboardCharts({ tenantId }: { tenantId: string }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v: number) => [`₹${v.toLocaleString('en-IN')}`, 'Revenue']} />
+              <Tooltip formatter={(v: TooltipValueType | undefined) => [`₹${Number(v).toLocaleString('en-IN')}`, 'Revenue']} />
               <Line type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { requireAuth } from '@/lib/tenant'
-import { hasFeature } from '@/lib/features'
+import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Invoice } from '@/models/Invoice'
 import { Customer } from '@/models/Customer'
 import { Tenant } from '@/models/Tenant'
@@ -11,9 +10,8 @@ import { generateInvoiceNo } from '@/lib/utils'
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   await connectDB()
   const { searchParams } = new URL(req.url)
@@ -40,9 +38,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   const body = await req.json()
   const parsed = invoiceSchema.safeParse(body)
@@ -81,6 +78,8 @@ export async function POST(req: NextRequest) {
   const invoice = await Invoice.create({
     tenantId: ctx.tenantId,
     invoiceNo,
+    staffName: ctx.name,
+    staffId: ctx.userId,
     customerId: customerId || undefined,
     customerSnapshot,
     items,

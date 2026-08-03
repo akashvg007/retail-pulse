@@ -11,13 +11,14 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { FeatureGate } from '@/components/FeatureGate'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import ModalFooter from '@/components/ModalFooter';
 
 type CustomerForm = z.infer<typeof customerSchema>
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export default function CustomersPage() {
   const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
+  const [editing, setEditing] = useState<CustomerForm | null>(null)
   const { data, isLoading } = useSWR('/api/customers?limit=50', fetcher)
   const customers = data?.data ?? []
 
@@ -31,14 +32,14 @@ export default function CustomersPage() {
     setOpen(true)
   }
 
-  function openEdit(customer: any) {
+  function openEdit(customer: CustomerForm) {
     setEditing(customer)
     reset(customer)
     setOpen(true)
   }
 
   async function onSubmit(data: CustomerForm) {
-    const url = editing ? `/api/customers/${editing._id}` : '/api/customers'
+    const url = editing ? `/api/customers/${editing?.id}` : '/api/customers'
     await fetch(url, {
       method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -59,19 +60,19 @@ export default function CustomersPage() {
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">Customers</h1>
-          <Button onClick={openCreate} size="sm"><Plus size={14} /> Add customer</Button>
+          <Button className="bg-blue-500 hover:bg-blue-700 px-4 py-2" onClick={openCreate} size="sm"><Plus size={14} /> Add customer</Button>
         </div>
 
         <Table
           columns={[
-            { key: 'name', label: 'Name' },
-            { key: 'email', label: 'Email' },
-            { key: 'phone', label: 'Phone' },
-            { key: 'gstNumber', label: 'GST No.' },
-            { key: '_id', label: '', render: (_, row) => (
+            { key: 'name', from:'customer', label: 'Name' },
+            { key: 'email',from:'customer', label: 'Email' },
+            { key: 'phone',from:'customer', label: 'Phone' },
+            { key: 'gstNumber', from:'customer', label: 'GST No.' },
+            { key: '_id',from:'customer', label: '', render: (_: string, row: CustomerForm) => (
               <div className="flex gap-2">
                 <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600"><Pencil size={14} /></button>
-                <button onClick={() => deleteCustomer(row._id)} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                <button onClick={() => deleteCustomer(row?.id ?? '')} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
               </div>
             )},
           ]}
@@ -84,15 +85,12 @@ export default function CustomersPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <Input label="Name" error={errors.name?.message} {...register('name')} />
           <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
-          <Input label="Phone" {...register('phone')} />
-          <Input label="Address" {...register('address')} />
-          <Input label="GST Number" {...register('gstNumber')} />
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? 'Saving…' : editing ? 'Update' : 'Create'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
+          <Input label="Phone" error={errors.phone?.message} {...register('phone')} />
+          <Input label="Address" error={errors.address?.message} {...register('address')} />
+          <Input label="GST Number" error={errors.gstNumber?.message} {...register('gstNumber')} />
+          <ModalFooter primaryButton={{ label: editing ? 'Update' : 'Create', loadingText: editing ? 'Updating…' : 'Creating…' }}
+            secondaryButton={{ label: 'Cancel', onClick: () => setOpen(false) }}
+          />
         </form>
       </Modal>
     </FeatureGate>

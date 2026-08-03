@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { requireAuth } from '@/lib/tenant'
-import { hasFeature } from '@/lib/features'
+import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Staff } from '@/models/Staff'
 
 export async function PATCH(
@@ -10,9 +9,8 @@ export async function PATCH(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'staff_management')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'staff_management')
+  if (denied) return denied
 
   const body = await req.json()
   await connectDB()
@@ -33,9 +31,8 @@ export async function DELETE(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'staff_management')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied2 = await requireFeature(ctx, 'staff_management')
+  if (denied2) return denied2
 
   await connectDB()
   const { id } = await params

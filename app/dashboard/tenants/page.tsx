@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Plus, Settings } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import Link from 'next/link'
+import ModalFooter from '@/components/ModalFooter';
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -71,16 +72,16 @@ export default function TenantsPage() {
 
       <Table
         columns={[
-          { key: 'name', label: 'Business name' },
-          { key: 'slug', label: 'Slug' },
-          { key: 'plan', label: 'Plan', render: (v) => (
+          { key: 'name',from:'tenants', label: 'Business name' },
+          { key: 'slug',from:'tenants', label: 'Slug' },
+          { key: 'plan',from:'tenants', label: 'Plan', render: (v) => (
             <Badge variant={v === 'enterprise' ? 'purple' : v === 'pro' ? 'blue' : 'gray'}>{v}</Badge>
           )},
-          { key: 'active', label: 'Status', render: (v) => (
+          { key: 'active', from:'tenants',label: 'Status', render: (v) => (
             <Badge variant={v ? 'green' : 'red'}>{v ? 'Active' : 'Inactive'}</Badge>
           )},
-          { key: 'createdAt', label: 'Joined', render: (v) => formatDate(v) },
-          { key: '_id', label: '', render: (id, row) => (
+          { key: 'createdAt',from:'tenants', label: 'Joined', render: (v) => formatDate(v) },
+          { key: '_id',from:'tenants', label: '', render: (id, row) => (
             <div className="flex gap-2">
               <Link href={`/dashboard/tenants/${id}/features`}>
                 <button className="text-xs text-indigo-600 hover:underline flex items-center gap-1">
@@ -108,19 +109,16 @@ export default function TenantsPage() {
           <Input label="Admin password" type="password" {...register('adminPassword', { required: true })} />
           <div>
             <label className="text-sm font-medium text-gray-700">Plan</label>
-            <select className="mt-1 bg-blue-500 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('plan')}>
+            <select className="mt-1 text-black block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('plan')}>
               <option value="basic">Basic</option>
               <option value="pro">Pro</option>
               <option value="enterprise">Enterprise</option>
             </select>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" disabled={isSubmitting} className="flex-1 bg-blue-500">
-              {isSubmitting ? 'Creating…' : 'Create tenant'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
+          <ModalFooter primaryButton={{ label: 'Create tenant', loadingText: 'Creating…' }}
+            secondaryButton={{ label: 'Cancel', onClick: () => setOpen(false) }}
+          />
         </form>
       </Modal>
     </div>

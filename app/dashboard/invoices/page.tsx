@@ -4,18 +4,38 @@ import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Badge, invoiceStatusBadge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
-import { Plus, Send, Eye } from 'lucide-react'
+import { Plus, Send, Eye, CheckCircle2, RotateCcw } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
+interface InvoiceRow {
+  _id: string
+  invoiceNo: string
+  customerId?: { name: string } | null
+  customerSnapshot?: { name: string } | null
+  total: number
+  status: string
+  createdAt: string
+}
+
 export default function InvoicesPage() {
   const { data, isLoading } = useSWR('/api/invoices?limit=50', fetcher)
-  const invoices = data?.data ?? []
+  const invoices = (data?.data ?? []) as InvoiceRow[]
 
   async function sendInvoice(id: string) {
     await fetch(`/api/invoices/${id}/send`, { method: 'POST' })
+    mutate('/api/invoices?limit=50')
+  }
+
+  async function togglePaidStatus(id: string, currentStatus: string) {
+    const nextStatus = currentStatus === 'paid' ? 'sent' : 'paid'
+    await fetch(`/api/invoices/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    })
     mutate('/api/invoices?limit=50')
   }
 
@@ -31,25 +51,32 @@ export default function InvoicesPage() {
 
         <Table
           columns={[
-            { key: 'invoiceNo', label: 'Invoice #' },
-            { key: 'customerId', label: 'Customer', render: (v, row) =>
+            { key: 'invoiceNo',from:'invoice', label: 'Invoice #' },
+            { key: 'customerId',from:'invoice', label: 'Customer', render: (_, row) =>
               row.customerId?.name ?? row.customerSnapshot?.name ?? '—'
             },
-            { key: 'total', label: 'Amount', render: (v) => formatCurrency(v) },
-            { key: 'status', label: 'Status', render: (v) => (
+            { key: 'total', from:'invoice', label: 'Amount', render: (v) => formatCurrency(v) },
+            { key: 'status', from:'invoice', label: 'Status', render: (v) => (
               <Badge variant={invoiceStatusBadge(v)}>{v}</Badge>
             )},
-            { key: 'createdAt', label: 'Date', render: (v) => formatDate(v) },
-            { key: '_id', label: '', render: (id, row) => (
+            { key: 'createdAt',from:'invoice', label: 'Date', render: (v) => formatDate(v) },
+            { key: '_id',from:'invoice', label: '', render: (id, row) => (
               <div className="flex gap-2">
                 <Link href={`/dashboard/invoices/${id}`}>
                   <button className="text-gray-400 hover:text-indigo-600"><Eye size={14} /></button>
                 </Link>
                 {row.status === 'draft' && (
-                  <button onClick={() => sendInvoice(id)} className="text-gray-400 hover:text-green-600">
+                  <button onClick={() => sendInvoice(id)} className="text-gray-400 hover:text-green-600" title="Send invoice">
                     <Send size={14} />
                   </button>
                 )}
+                <button
+                  onClick={() => togglePaidStatus(id, row.status)}
+                  className={row.status === 'paid' ? 'text-green-600 hover:text-green-700' : 'text-gray-400 hover:text-indigo-600'}
+                  title={row.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
+                >
+                  {row.status === 'paid' ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
+                </button>
               </div>
             )},
           ]}

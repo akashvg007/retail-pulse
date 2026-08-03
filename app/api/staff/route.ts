@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { requireAuth } from '@/lib/tenant'
-import { hasFeature } from '@/lib/features'
+import { requireAuth, requireFeature } from '@/lib/tenant'
+import { setStaffFeatures } from '@/lib/features'
 import { User } from '@/models/User'
 import { Staff } from '@/models/Staff'
 import { staffSchema } from '@/lib/validations'
+import { type FeatureKey } from '@/types/features'
 import bcrypt from 'bcryptjs'
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'staff_management')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'staff_management')
+  if (denied) return denied
 
   await connectDB()
   const { searchParams } = new URL(req.url)
@@ -32,9 +32,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'staff_management')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'staff_management')
+  if (denied) return denied
 
   const body = await req.json()
   const parsed = staffSchema.safeParse(body)
@@ -60,6 +59,13 @@ export async function POST(req: NextRequest) {
     department: parsed.data.department,
     permissions: parsed.data.permissions,
   })
+
+  if (parsed.data.features.length > 0) {
+    const featureMap = Object.fromEntries(
+      parsed.data.features.map((k) => [k, true])
+    ) as Record<FeatureKey, boolean>
+    await setStaffFeatures(user._id.toString(), ctx.tenantId, featureMap, ctx.userId)
+  }
 
   return NextResponse.json({ data: { ...staff.toObject(), user } }, { status: 201 })
 }

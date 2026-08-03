@@ -14,6 +14,8 @@ export interface InvoiceItem {
 export interface IInvoice extends Document {
   tenantId: mongoose.Types.ObjectId
   invoiceNo: string
+  staffName?: string
+  staffId?: mongoose.Types.ObjectId
   customerId?: mongoose.Types.ObjectId
   customerSnapshot?: { name: string; email?: string; gstNumber?: string }
   items: InvoiceItem[]
@@ -45,6 +47,8 @@ const InvoiceSchema = new Schema<IInvoice>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     invoiceNo: { type: String, required: true },
+    staffName: { type: String, required: true },
+    staffId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     customerId: { type: Schema.Types.ObjectId, ref: 'Customer' },
     customerSnapshot: {
       name: String,

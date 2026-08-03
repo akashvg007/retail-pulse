@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import { requireAuth } from '@/lib/tenant'
-import { hasFeature } from '@/lib/features'
+import { requireAuth, requireFeature } from '@/lib/tenant'
+import { Customer } from '@/models/Customer'
 import { Invoice } from '@/models/Invoice'
 
 export async function GET(
@@ -10,9 +10,8 @@ export async function GET(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params
@@ -29,16 +28,35 @@ export async function PATCH(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   const body = await req.json()
   await connectDB()
   const { id } = await params
+
+  const update: Record<string, unknown> = { ...body }
+  if (Object.prototype.hasOwnProperty.call(body, 'customerId')) {
+    const customerId = body.customerId === '' ? undefined : body.customerId
+    update.customerId = customerId
+
+    if (customerId) {
+      const customer = await Customer.findOne({ _id: customerId, tenantId: ctx.tenantId }).lean()
+      update.customerSnapshot = customer
+        ? {
+            name: customer.name,
+            email: customer.email,
+            gstNumber: customer.gstNumber,
+          }
+        : undefined
+    } else {
+      update.customerSnapshot = undefined
+    }
+  }
+
   const invoice = await Invoice.findOneAndUpdate(
     { _id: id, tenantId: ctx.tenantId },
-    body,
+    update,
     { new: true }
   ).lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -51,9 +69,8 @@ export async function DELETE(
 ) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
-  if (!await hasFeature(ctx.tenantId, 'invoicing')) {
-    return NextResponse.json({ error: 'Feature not enabled' }, { status: 403 })
-  }
+  const denied = await requireFeature(ctx, 'invoicing')
+  if (denied) return denied
 
   await connectDB()
   const { id } = await params

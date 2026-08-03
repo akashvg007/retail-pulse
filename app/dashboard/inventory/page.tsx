@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import useSWR, { mutate } from 'swr'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { productSchema } from '@/lib/validations'
 import { z } from 'zod'
@@ -13,18 +13,19 @@ import { Badge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import ModalFooter from '@/components/ModalFooter';
 
 type ProductForm = z.infer<typeof productSchema>
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export default function InventoryPage() {
   const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<any>(null)
+  const [editing, setEditing] = useState<ProductForm | null>(null)
   const { data, isLoading } = useSWR('/api/products?limit=50', fetcher)
-  const products = data?.data ?? []
+  const products = (data?.data ?? []) as ProductForm[]
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProductForm>({
-    resolver: zodResolver(productSchema),
+    resolver: zodResolver(productSchema) as Resolver<ProductForm>,
   })
 
   function openCreate() {
@@ -33,14 +34,14 @@ export default function InventoryPage() {
     setOpen(true)
   }
 
-  function openEdit(product: any) {
+  function openEdit(product: ProductForm) {
     setEditing(product)
     reset({ ...product })
     setOpen(true)
   }
 
   async function onSubmit(data: ProductForm) {
-    const url = editing ? `/api/products/${editing._id}` : '/api/products'
+    const url = editing ? `/api/products/${editing?._id}` : '/api/products'
     await fetch(url, {
       method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -71,19 +72,19 @@ export default function InventoryPage() {
 
         <Table
           columns={[
-            { key: 'name', label: 'Name' },
-            { key: 'sku', label: 'SKU' },
-            { key: 'category', label: 'Category' },
-            { key: 'price', label: 'Price', render: (v) => formatCurrency(v) },
-            { key: 'stockQty', label: 'Stock', render: (v) => (
+            { key: 'name',from:'inventory', label: 'Name' },
+            { key: 'sku',from:'inventory', label: 'SKU' },
+            { key: 'category',from:'inventory', label: 'Category' },
+            { key: 'price',from:'inventory', label: 'Price', render: (v) => formatCurrency(v) },
+            { key: 'stockQty',from:'inventory', label: 'Stock', render: (v) => (
               <Badge variant={v > 0 ? 'green' : 'red'}>{v} units</Badge>
             )},
-            { key: '_id', label: '', render: (_, row) => (
+            { key: '_id',from:'inventory', label: '', render: (_, row) => (
               <div className="flex gap-2">
                 <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600">
                   <Pencil size={14} />
                 </button>
-                <button onClick={() => deleteProduct(row._id)} className="text-gray-400 hover:text-red-600">
+                <button onClick={() => deleteProduct(row._id!)} className="text-gray-400 hover:text-red-600">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -110,12 +111,9 @@ export default function InventoryPage() {
             <Input label="Tax rate (%)" type="number" {...register('taxRate', { valueAsNumber: true })} />
           </div>
           <Input label="Category" {...register('category')} />
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
-              {isSubmitting ? 'Saving…' : editing ? 'Update' : 'Create'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
+          <ModalFooter primaryButton={{ label: editing ? 'Update' : 'Create', loadingText: editing ? 'Updating…' : 'Creating…' }}
+            secondaryButton={{ label: 'Cancel', onClick: () => setOpen(false) }}
+          />
         </form>
       </Modal>
     </FeatureGate>

@@ -2,14 +2,14 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
 import { FEATURE_META, ALL_FEATURE_KEYS, type FeatureKey } from '@/types/features'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
+import ToggleSlider from '@/components/ToggleSlider';
 
 export default function TenantFeaturesPage() {
   const { id: tenantId } = useParams<{ id: string }>()
-  const [features, setFeatures] = useState<Record<FeatureKey, boolean>>({} as any)
+  const [features, setFeatures] = useState<Record<FeatureKey, boolean>>({} as Record<FeatureKey, boolean>)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -66,21 +66,14 @@ export default function TenantFeaturesPage() {
                   <p className="text-sm font-medium text-gray-900">{meta.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{meta.description}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={enabled ? 'green' : 'gray'}>{enabled ? 'Enabled' : 'Disabled'}</Badge>
-                  <button
-                    onClick={() => toggle(key)}
-                    className={`relative h-6 w-11 rounded-full transition-colors ${
-                      enabled ? 'bg-indigo-600' : 'bg-gray-200'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                        enabled ? 'translate-x-5' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
+                <ToggleSlider
+                  toggleKey={key}
+                  field="beta"
+                  primaryColor="bg-indigo-600"
+                  isEnabled={enabled ?? false}
+                  label={enabled ? 'Enabled' : 'Disabled'}
+                  toggle={toggle}
+                />
               </div>
             )
           })}
