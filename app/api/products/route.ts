@@ -6,27 +6,30 @@ import { productSchema } from '@/lib/validations'
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth()
-  console.log("ctx ==> ", ctx);
   if (ctx instanceof NextResponse) return ctx
 
   const denied = await requireFeature(ctx, 'inventory')
-  console.log("denied ==> ", denied);
   if (denied) return denied
 
   await connectDB()
   const { searchParams } = new URL(req.url)
   const page = Math.max(1, Number(searchParams.get('page') ?? 1))
-  const limit = Math.min(100, Number(searchParams.get('limit') ?? 20))
+  const limit = Math.min(500, Number(searchParams.get('limit') ?? 20))
   const search = searchParams.get('search') ?? ''
 
   const filter: Record<string, unknown> = { tenantId: ctx.tenantId, active: true }
-  if (search) filter.name = { $regex: search, $options: 'i' }
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: 'i' } },
+      { sku: { $regex: search, $options: 'i' } },
+      { category: { $regex: search, $options: 'i' } },
+    ]
+  }
 
   const [data, total] = await Promise.all([
     Product.find(filter).skip((page - 1) * limit).limit(limit).sort({ createdAt: -1 }).lean(),
     Product.countDocuments(filter),
   ])
-  console.log("data ==> ", data);
 
   return NextResponse.json({ data, total, page, limit })
 }

@@ -68,7 +68,11 @@ export default function POSPage() {
   const [customerForm, setCustomerForm] = useState({ name: '', email: '', phone: '' })
   const [customerFormError, setCustomerFormError] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const { data } = useSWR('/api/products?limit=100', fetcher)
+  const searchTerm = searchQuery.trim()
+  const productsUrl = searchTerm
+    ? `/api/products?limit=500&search=${encodeURIComponent(searchTerm)}`
+    : '/api/products?limit=100'
+  const { data, isLoading } = useSWR(productsUrl, fetcher)
   const { data: customersResponse, mutate: mutateCustomers } = useSWR('/api/customers?limit=100', fetcher)
   const allProducts = (data?.data ?? []).filter((p: ProductData) => p.stockQty > 0)
   const customers: CustomerData[] = Array.isArray(customersResponse?.data) ? customersResponse.data : []
@@ -371,7 +375,10 @@ export default function POSPage() {
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h1 className="text-xl font-bold text-gray-900">Point of Sale</h1>
-              <p className="text-xs text-gray-400">{products.length} products</p>
+              <p className="text-xs text-gray-400">
+                {searchTerm ? `${products.length} matching products` : `${products.length} products`}
+                {isLoading ? '…' : ''}
+              </p>
             </div>
 
             {/* Search & Barcode input */}
