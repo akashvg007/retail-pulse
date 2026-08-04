@@ -12,6 +12,7 @@ export interface ITenant extends Document {
     currency: string
   }
   invoiceCounter: number
+  purchaseOrderCounter: number
   active: boolean
   createdAt: Date
   updatedAt: Date
@@ -30,6 +31,7 @@ const TenantSchema = new Schema<ITenant>(
       currency: { type: String, default: 'INR' },
     },
     invoiceCounter: { type: Number, default: 0 },
+    purchaseOrderCounter: { type: Number, default: 0 },
     active: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react'
 import {
   LayoutDashboard, Package, Users, FileText, ShoppingCart,
   CreditCard, UserCheck, RefreshCw, BarChart2, Building2,
-  ToggleLeft, Settings, LogOut, Zap, Menu, X,
+  ToggleLeft, Settings, LogOut, Zap, Menu, X, Truck, ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFeature } from '@/contexts/FeatureContext'
@@ -25,6 +25,8 @@ const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/inventory', label: 'Inventory', icon: Package, feature: 'inventory' },
   { href: '/dashboard/customers', label: 'Customers', icon: Users, feature: 'crm' },
+  { href: '/dashboard/suppliers', label: 'Suppliers', icon: Truck, feature: 'supplier_management' },
+  { href: '/dashboard/purchases', label: 'Purchases', icon: ClipboardList, feature: 'purchase_management' },
   { href: '/dashboard/invoices', label: 'Invoices', icon: FileText, feature: 'invoicing' },
   { href: '/dashboard/pos', label: 'Point of Sale', icon: ShoppingCart, feature: 'pos' },
   { href: '/dashboard/payments', label: 'Payments', icon: CreditCard, feature: 'payments' },

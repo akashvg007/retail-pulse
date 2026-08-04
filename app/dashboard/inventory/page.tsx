@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
-import { Download, FileSpreadsheet, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { Download, FileSpreadsheet, Grid3X3, List, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import ModalFooter from '@/components/ModalFooter'
 import { read, utils, writeFile } from 'xlsx'
@@ -23,6 +23,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 export default function InventoryPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<ProductForm | null>(null)
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState(0)
   const [importMessage, setImportMessage] = useState<string | null>(null)
@@ -48,7 +49,7 @@ export default function InventoryPage() {
     return [1, page - 1, page, page + 1, totalPages]
   }, [page, totalPages])
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProductForm>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<ProductForm>({
     resolver: zodResolver(productSchema) as Resolver<ProductForm>,
   })
 
@@ -79,6 +80,19 @@ export default function InventoryPage() {
     if (!confirm('Delete this product?')) return
     await fetch(`/api/products/${id}`, { method: 'DELETE' })
     mutate(`/api/products?limit=10&page=${page}`)
+  }
+
+  function ProductActions({ product }: { product: ProductForm }) {
+    return (
+      <div className="flex gap-2">
+        <button onClick={() => openEdit(product)} className="text-gray-400 hover:text-indigo-600">
+          <Pencil size={14} />
+        </button>
+        <button onClick={() => deleteProduct(product._id!)} className="text-gray-400 hover:text-red-600">
+          <Trash2 size={14} />
+        </button>
+      </div>
+    )
   }
 
   function downloadSampleTemplate() {
@@ -157,7 +171,23 @@ export default function InventoryPage() {
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Inventory</h1>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="inline-flex rounded-lg border border-gray-300 bg-white p-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${viewMode === 'grid' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                <Grid3X3 size={14} /> Grid
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${viewMode === 'list' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                <List size={14} /> List
+              </button>
+            </div>
             <Button variant="secondary" size="sm" onClick={downloadSampleTemplate}>
               <Download size={14} /> Sample sheet
             </Button>
@@ -212,29 +242,56 @@ export default function InventoryPage() {
           </div>
         ) : null}
 
-        <Table
-          columns={[
-            { key: 'name',from:'inventory', label: 'Name' },
-            { key: 'sku',from:'inventory', label: 'SKU' },
-            { key: 'category',from:'inventory', label: 'Category' },
-            { key: 'price',from:'inventory', label: 'Price', render: (v) => formatCurrency(v) },
-            { key: 'stockQty',from:'inventory', label: 'Stock', render: (v) => (
-              <Badge variant={v > 0 ? 'green' : 'red'}>{v} units</Badge>
-            )},
-            { key: '_id',from:'inventory', label: '', render: (_, row) => (
-              <div className="flex gap-2">
-                <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600">
-                  <Pencil size={14} />
-                </button>
-                <button onClick={() => deleteProduct(row._id!)} className="text-gray-400 hover:text-red-600">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            )},
-          ]}
-          data={products}
-          emptyMessage={isLoading ? 'Loading…' : 'No products yet. Add your first product.'}
-        />
+        {viewMode === 'grid' ? (
+          products.length ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {products.map((product) => (
+                <div key={String(product._id)} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
+                      <p className="text-xs text-gray-500">{product.sku || 'No SKU'}</p>
+                    </div>
+                    <ProductActions product={product} />
+                  </div>
+                  <div className="space-y-2 text-sm text-gray-700">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Category</span>
+                      <span className="font-medium">{product.category || 'Uncategorized'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Price</span>
+                      <span className="font-semibold text-gray-900">{formatCurrency(product.price)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Stock</span>
+                      <Badge variant={(product.stockQty ?? 0) > 0 ? 'green' : 'red'}>{product.stockQty ?? 0} units</Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-400">
+              {isLoading ? 'Loading…' : 'No products yet. Add your first product.'}
+            </div>
+          )
+        ) : (
+          <Table
+            columns={[
+              { key: 'name',from:'inventory', label: 'Name' },
+              { key: 'sku',from:'inventory', label: 'SKU' },
+              { key: 'category',from:'inventory', label: 'Category' },
+              { key: 'price',from:'inventory', label: 'Price', render: (v) => formatCurrency(v) },
+              { key: 'stockQty',from:'inventory', label: 'Stock', render: (v) => (
+                <Badge variant={v > 0 ? 'green' : 'red'}>{v} units</Badge>
+              )},
+              { key: '_id',from:'inventory', label: '', render: (_, row) => <ProductActions product={row} /> },
+            ]}
+            data={products}
+            emptyMessage={isLoading ? 'Loading…' : 'No products yet. Add your first product.'}
+          />
+        )}
 
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-600">
           <span>
