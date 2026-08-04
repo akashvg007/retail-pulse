@@ -60,8 +60,8 @@ export default function InvoiceDetailPage() {
 
   return (
     <FeatureGate feature="invoicing" fallback={<LockedPage />}>
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
-        <div className="flex items-center justify-between print:hidden">
+      <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
           <div className="flex items-center gap-3">
             <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-700">
               <ArrowLeft size={18} />
@@ -81,7 +81,7 @@ export default function InvoiceDetailPage() {
         {invoice && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex items-start justify-between p-6 border-b border-gray-100">
+            <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
               <div>
                 <p className="text-2xl font-bold text-gray-900">{invoice.invoiceNo}</p>
                 <p className="text-sm text-gray-500 mt-1">Issued {formatDate(invoice.createdAt)}</p>
@@ -138,34 +138,36 @@ export default function InvoiceDetailPage() {
             </div>
 
             {/* Line items */}
-            <div className="p-6 border-b border-gray-100">
+            <div className="border-b border-gray-100 p-4 sm:p-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Items</p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-100">
-                    <th className="pb-2 font-medium">Item</th>
-                    <th className="pb-2 font-medium text-right">Qty</th>
-                    <th className="pb-2 font-medium text-right">Price</th>
-                    <th className="pb-2 font-medium text-right">Tax</th>
-                    <th className="pb-2 font-medium text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(invoice.items as { name: string; qty: number; price: number; taxRate: number; total: number }[]).map((item, i) => (
-                    <tr key={i} className="border-b border-gray-50 last:border-0">
-                      <td className="py-2 text-gray-900">{item.name}</td>
-                      <td className="py-2 text-right text-gray-700">{item.qty}</td>
-                      <td className="py-2 text-right text-gray-700">{formatCurrency(item.price)}</td>
-                      <td className="py-2 text-right text-gray-500">{item.taxRate}%</td>
-                      <td className="py-2 text-right font-medium text-gray-900">{formatCurrency(item.total)}</td>
+              <div className="overflow-x-auto">
+                <table className="min-w-155 w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b border-gray-100">
+                      <th className="pb-2 font-medium">Item</th>
+                      <th className="pb-2 font-medium text-right">Qty</th>
+                      <th className="pb-2 font-medium text-right">Price</th>
+                      <th className="pb-2 font-medium text-right">Tax</th>
+                      <th className="pb-2 font-medium text-right">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {(invoice.items as { name: string; qty: number; price: number; taxRate: number; total: number }[]).map((item, i) => (
+                      <tr key={i} className="border-b border-gray-50 last:border-0">
+                        <td className="py-2 text-gray-900">{item.name}</td>
+                        <td className="py-2 text-right text-gray-700">{item.qty}</td>
+                        <td className="py-2 text-right text-gray-700">{formatCurrency(item.price)}</td>
+                        <td className="py-2 text-right text-gray-500">{item.taxRate}%</td>
+                        <td className="py-2 text-right font-medium text-gray-900">{formatCurrency(item.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Totals */}
-            <div className="p-6 flex justify-end">
+            <div className="flex justify-end p-4 sm:p-6">
               <div className="w-56 space-y-1 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>

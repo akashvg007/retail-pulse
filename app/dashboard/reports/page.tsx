@@ -3,7 +3,6 @@ import { Suspense } from 'react'
 import { auth } from '@/lib/auth'
 import { getDashboardReportsData } from '@/lib/reports-data'
 import { FeatureGate } from '@/components/FeatureGate'
-import { Badge } from '@/components/ui/Badge'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,16 +17,8 @@ export default async function ReportsPage() {
 
   return (
     <FeatureGate feature="reports" fallback={<LockedPage />}>
-      <div className="space-y-6 p-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Reports & Analytics</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Live billing and finance insights pulled from the tenant database.
-            </p>
-          </div>
-          <Badge variant="blue">Live reporting snapshot</Badge>
-        </div>
+      <div className="space-y-6 p-4 sm:p-6">
+        <h1 className="text-xl font-bold text-gray-900">Reports & Analytics</h1>
 
         {reportData ? (
           <Suspense fallback={<div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading reports…</div>}>

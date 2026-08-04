@@ -19,7 +19,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-xl">
+    <div className="max-w-xl space-y-6 p-4 sm:p-6">
       <h1 className="text-xl font-bold text-gray-900">Settings</h1>
 
       <Card>
@@ -31,7 +31,7 @@ export default function SettingsPage() {
             <Input label="Business Name" {...register('name')} />
             <Input label="GST Number" {...register('gstNumber')} />
             <Input label="Address" {...register('address')} />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input label="Default Tax Rate (%)" type="number" defaultValue={18} {...register('taxRate', { valueAsNumber: true })} />
               <div>
                 <label className="text-sm font-medium text-gray-700">Currency</label>

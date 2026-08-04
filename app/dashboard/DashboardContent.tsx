@@ -47,10 +47,10 @@ export async function DashboardContent() {
   const isSuper = session?.user?.role === 'super_admin'
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-0.5 text-sm text-gray-500">
+        <p className="text-sm text-gray-500 mt-0.5">
           {isSuper ? 'Platform overview' : 'Your store at a glance'}
         </p>
       </div>
@@ -75,9 +75,9 @@ export async function DashboardContent() {
       </FeatureGate>
 
       {!tenantId && isSuper && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-6 py-5">
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-4 sm:px-6 sm:py-5">
           <h2 className="font-semibold text-indigo-900">Super Admin Console</h2>
-          <p className="mt-1 text-sm text-indigo-700">
+          <p className="text-sm text-indigo-700 mt-1">
             Manage tenants and feature flags from the Admin section in the sidebar.
           </p>
         </div>

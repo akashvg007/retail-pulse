@@ -37,7 +37,7 @@ export default function TenantFeaturesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
+    <div className="max-w-2xl space-y-6 p-4 sm:p-6">
       <div className="flex items-center gap-3">
         <Link href="/dashboard/tenants">
           <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50">
@@ -60,7 +60,7 @@ export default function TenantFeaturesPage() {
             return (
               <div
                 key={key}
-                className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4"
+                className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
               >
                 <div>
                   <p className="text-sm font-medium text-gray-900">{meta.name}</p>

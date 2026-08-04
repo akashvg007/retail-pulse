@@ -24,9 +24,9 @@ export default async function DashboardLayout({
 
   return (
     <FeatureProvider features={features}>
-      <div className="flex h-screen overflow-hidden bg-slate-50">
+      <div className="min-h-screen bg-slate-50 lg:flex">
         <div className="print:hidden"><Sidebar session={session} /></div>
-        <main className="flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 overflow-x-hidden">
           {children}
         </main>
       </div>

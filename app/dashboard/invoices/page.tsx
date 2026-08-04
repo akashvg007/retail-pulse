@@ -41,12 +41,12 @@ export default function InvoicesPage() {
 
   return (
     <FeatureGate feature="invoicing" fallback={<LockedPage />}>
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Invoices</h1>
-          <Link href="/dashboard/invoices/new">
+          {/* <Link href="/dashboard/invoices/new">
             <Button size="sm"><Plus size={14} /> New invoice</Button>
-          </Link>
+          </Link> */}
         </div>
 
         <Table

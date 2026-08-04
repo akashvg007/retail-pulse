@@ -154,8 +154,8 @@ export default function InventoryPage() {
       feature="inventory"
       fallback={<LockedPage name="Inventory" />}
     >
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Inventory</h1>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={downloadSampleTemplate}>
@@ -262,16 +262,16 @@ export default function InventoryPage() {
 
       <Modal open={open} onClose={() => setOpen(false)} title={editing ? 'Edit product' : 'Add product'}>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Name" error={errors.name?.message} {...register('name')} />
             <Input label="SKU" error={errors.sku?.message} {...register('sku')} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Price (₹)" type="number" step="0.01" error={errors.price?.message}
               {...register('price', { valueAsNumber: true })} />
             <Input label="Cost (₹)" type="number" step="0.01" {...register('cost', { valueAsNumber: true })} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="Stock qty" type="number" {...register('stockQty', { valueAsNumber: true })} />
             <Input label="Tax rate (%)" type="number" {...register('taxRate', { valueAsNumber: true })} />
           </div>
