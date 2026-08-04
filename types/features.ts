@@ -4,6 +4,8 @@ export type FeatureKey =
   | 'crm'
   | 'pos'
   | 'payments'
+  | 'supplier_management'
+  | 'purchase_management'
   | 'staff_management'
   | 'subscriptions'
   | 'reports'
@@ -16,6 +18,8 @@ export const ALL_FEATURE_KEYS: FeatureKey[] = [
   'crm',
   'pos',
   'payments',
+  'supplier_management',
+  'purchase_management',
   'staff_management',
   'subscriptions',
   'reports',
@@ -29,6 +33,14 @@ export const FEATURE_META: Record<FeatureKey, { name: string; description: strin
   crm: { name: 'CRM', description: 'Manage customers and contact information' },
   pos: { name: 'Point of Sale', description: 'In-store POS with cart and quick checkout' },
   payments: { name: 'Payments', description: 'Accept payments via Razorpay' },
+  supplier_management: {
+    name: 'Supplier Management',
+    description: 'Manage suppliers, contacts and supplier ledgers',
+  },
+  purchase_management: {
+    name: 'Purchase Management',
+    description: 'Create purchase orders, receive stock and track supplier payables',
+  },
   staff_management: { name: 'Staff Management', description: 'Manage staff accounts and permissions' },
   subscriptions: { name: 'Subscriptions', description: 'Recurring billing and subscription management' },
   reports: { name: 'Reports & Analytics', description: 'Sales, inventory and customer reports' },

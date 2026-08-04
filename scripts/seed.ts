@@ -26,6 +26,16 @@ async function seed() {
   }
   console.log(`✓ Seeded ${ALL_FEATURE_KEYS.length} feature flags (all disabled by default)`)
 
+  // Keep procurement features hidden until explicitly enabled for a tenant.
+  await FeatureFlag.findOneAndUpdate(
+    { key: 'supplier_management' },
+    { $set: { globalEnabled: false, beta: true } }
+  )
+  await FeatureFlag.findOneAndUpdate(
+    { key: 'purchase_management' },
+    { $set: { globalEnabled: false, beta: true } }
+  )
+
   // Seed super admin if not exists
   const existing = await User.findOne({ role: 'super_admin' })
   if (!existing) {

@@ -33,6 +33,20 @@ export const customerSchema = z.object({
   gstNumber: z.string().optional(),
 })
 
+export const supplierSchema = z.object({
+  _id: z.string().optional(),
+  name: z.string().min(1, 'Supplier name is required'),
+  code: z.string().min(1, 'Supplier code is required'),
+  contactPerson: z.string().optional(),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  gstNumber: z.string().optional(),
+  paymentTerms: z.string().optional(),
+  notes: z.string().optional(),
+  active: z.boolean().optional().default(true),
+})
+
 export const invoiceItemSchema = z.object({
   productId: z.string().optional(),
   name: z.string().min(1),
@@ -47,6 +61,22 @@ export const invoiceSchema = z.object({
   items: z.array(invoiceItemSchema).min(1, 'At least one item required'),
   discount: z.number().min(0).default(0),
   dueDate: z.string().optional(),
+  notes: z.string().optional(),
+})
+
+export const purchaseOrderItemSchema = z.object({
+  productId: z.string().optional(),
+  name: z.string().min(1, 'Item name is required'),
+  qty: z.number().int().min(1, 'Quantity must be at least 1'),
+  unitCost: z.number().min(0, 'Unit cost must be zero or more'),
+  taxRate: z.number().min(0).max(100).default(0),
+  total: z.number().min(0, 'Line total must be zero or more'),
+})
+
+export const purchaseOrderSchema = z.object({
+  supplierId: z.string().min(1, 'Supplier is required'),
+  items: z.array(purchaseOrderItemSchema).min(1, 'At least one purchase item is required'),
+  expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),
 })
 

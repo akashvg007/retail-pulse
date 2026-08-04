@@ -57,8 +57,8 @@ export default function CustomersPage() {
 
   return (
     <FeatureGate feature="crm" fallback={<LockedPage />}>
-      <div className="p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 p-4 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Customers</h1>
           <Button className="bg-blue-500 hover:bg-blue-700 px-4 py-2" onClick={openCreate} size="sm"><Plus size={14} /> Add customer</Button>
         </div>

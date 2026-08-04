@@ -34,7 +34,7 @@ export default function FeatureFlagsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6 p-4 sm:p-6">
       <div>
         <h1 className="text-xl font-bold text-gray-900">Platform Feature Flags</h1>
         <p className="text-sm text-gray-500 mt-1">
@@ -52,7 +52,7 @@ export default function FeatureFlagsPage() {
       ) : (
         <div className="space-y-2">
           {flags.map((flag) => (
-            <div key={flag.key} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
+            <div key={flag.key} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium text-gray-900">{flag.name}</p>
@@ -60,7 +60,7 @@ export default function FeatureFlagsPage() {
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">{FEATURE_META[flag.key]?.description}</p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <ToggleSlider 
                   toggleKey={flag.key} 
                   field="beta" 

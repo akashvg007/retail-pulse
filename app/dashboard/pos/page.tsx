@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { FeatureGate } from '@/components/FeatureGate'
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Search, X } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Search, X, ChevronDown } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -54,6 +54,9 @@ function formatDate(value: string) {
 
 export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([])
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentOption, setPaymentOption] = useState<PaymentOption>('upi')
@@ -110,6 +113,8 @@ export default function POSPage() {
       if (existing) return prev.map((i) => i._id === product._id ? { ...i, qty: i.qty + 1 } : i)
       return [...prev, { _id: product._id, name: product.name, price: product.price, taxRate: product.taxRate, qty: 1 }]
     })
+    setLastAddedId(product._id)
+    setTimeout(() => setLastAddedId((prev) => (prev === product._id ? null : prev)), 400)
   }
 
   // Handle barcode scan: auto-add if exactly one match, otherwise show in search
@@ -130,6 +135,16 @@ export default function POSPage() {
     }
   }
 
+  function openDrawer() {
+    setCartDrawerOpen(true)
+    requestAnimationFrame(() => requestAnimationFrame(() => setDrawerVisible(true)))
+  }
+
+  function closeDrawer() {
+    setDrawerVisible(false)
+    setTimeout(() => setCartDrawerOpen(false), 320)
+  }
+
   function clearSearch() {
     setSearchQuery('')
     searchInputRef.current?.focus()
@@ -148,6 +163,7 @@ export default function POSPage() {
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0)
   const tax = cart.reduce((sum, i) => sum + (i.price * i.qty * i.taxRate) / 100, 0)
   const total = subtotal + tax
+  const cartCount = cart.reduce((sum, i) => sum + i.qty, 0)
 
   const cashAmount = Number(cashReceived || 0)
   const cashBalance = cashAmount - total
@@ -369,11 +385,11 @@ export default function POSPage() {
 
   return (
     <FeatureGate feature="pos" fallback={<LockedPage />}>
-      <div className="flex h-full">
+      <div className="flex h-full flex-col xl:flex-row">
         {/* Product grid */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col">
+        <div className="flex flex-1 flex-col overflow-y-auto p-4 pb-24 sm:p-6 xl:pb-6">
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
+            <div className="mb-3 flex items-start justify-between gap-3">
               <h1 className="text-xl font-bold text-gray-900">Point of Sale</h1>
               <p className="text-xs text-gray-400">
                 {searchTerm ? `${products.length} matching products` : `${products.length} products`}
@@ -404,13 +420,17 @@ export default function POSPage() {
           </div>
 
           {/* Product grid */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {products.length > 0 ? (
               products.map((product: ProductData) => (
                 <button
                   key={product._id}
                   onClick={() => addToCart(product)}
-                  className="rounded-xl border border-gray-200 bg-white p-4 text-left hover:border-indigo-400 hover:shadow-sm transition-all"
+                  className={`rounded-xl border p-4 text-left transition-all duration-200 ${
+                    lastAddedId === product._id
+                      ? 'border-indigo-500 bg-indigo-50 scale-95 shadow-inner'
+                      : 'border-gray-200 bg-white hover:border-indigo-400 hover:shadow-sm'
+                  }`}
                 >
                   <p className="font-medium text-sm text-gray-900 truncate">{product.name}</p>
                   <p className="text-xs text-gray-500 mt-1">{product.category}</p>
@@ -430,8 +450,8 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Cart sidebar */}
-        <div className="w-80 border-l border-gray-200 bg-white flex flex-col">
+        {/* Cart sidebar — desktop only */}
+        <div className="hidden xl:flex w-full flex-col border-t border-gray-200 bg-white xl:w-80 xl:border-l xl:border-t-0">
           <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-4">
             <ShoppingCart size={18} className="text-gray-500" />
             <span className="font-semibold text-gray-900">Cart ({cart.length})</span>
@@ -544,6 +564,153 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile sticky bottom banner */}
+      {cart.length > 0 && (
+        <div className="xl:hidden fixed bottom-0 left-0 right-0 z-30 px-3 pb-3">
+          <button
+            onClick={openDrawer}
+            className="flex w-full items-center gap-3 rounded-2xl bg-indigo-600 px-4 py-3 text-white shadow-lg active:scale-[0.98] transition-transform"
+          >
+            <div className="relative shrink-0">
+              <ShoppingCart size={22} />
+              <span className="absolute -top-2 -right-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white text-indigo-700 text-[11px] font-bold leading-none">
+                {cartCount}
+              </span>
+            </div>
+            <span className="flex-1 text-center text-base font-semibold">{formatCurrency(total)}</span>
+            <span className="shrink-0 text-sm font-medium opacity-90">
+              {cartCount} item{cartCount !== 1 ? 's' : ''}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Mobile cart bottom drawer */}
+      {cartDrawerOpen && (
+        <>
+          <div
+            onClick={closeDrawer}
+            className={`xl:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${drawerVisible ? 'opacity-100' : 'opacity-0'}`}
+          />
+          <div className={`xl:hidden fixed bottom-0 left-0 right-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-2xl transition-transform duration-300 ease-out ${drawerVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <ShoppingCart size={18} className="text-gray-500" />
+                <span className="font-semibold text-gray-900">Cart ({cartCount})</span>
+              </div>
+              <button
+                onClick={closeDrawer}
+                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <ChevronDown size={20} />
+              </button>
+            </div>
+
+            <div className="border-b border-gray-200 px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Customer</p>
+                <button
+                  onClick={openCreateCustomer}
+                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                  type="button"
+                >
+                  + New
+                </button>
+              </div>
+              {selectedCustomer ? (
+                <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-3 py-2 text-sm">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-indigo-900">{selectedCustomer.name}</p>
+                      {selectedCustomer.phone && <p className="text-xs text-indigo-700">{selectedCustomer.phone}</p>}
+                      {selectedCustomer.email && <p className="text-xs text-indigo-700">{selectedCustomer.email}</p>}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedCustomerId(''); setCustomerSearch('') }}
+                      className="text-indigo-400 hover:text-indigo-700"
+                      aria-label="Remove customer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Search customer by name, email, phone"
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                  />
+                  <div className="max-h-28 overflow-y-auto rounded-lg border border-gray-200">
+                    {filteredCustomers.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-gray-500">No customers found</p>
+                    ) : (
+                      filteredCustomers.slice(0, 8).map((customer) => (
+                        <button
+                          key={customer._id}
+                          type="button"
+                          onClick={() => setSelectedCustomerId(customer._id)}
+                          className="block w-full border-b border-gray-100 px-3 py-2 text-left text-xs hover:bg-gray-50 last:border-b-0"
+                        >
+                          <p className="font-medium text-gray-900">{customer.name}</p>
+                          <p className="text-gray-500">{customer.phone || customer.email || 'No contact details'}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+              {customerApiError && <p className="text-xs text-amber-700">{customerApiError}</p>}
+            </div>
+
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+              {cart.map((item) => (
+                <div key={item._id} className="px-4 py-3">
+                  <div className="flex items-start justify-between">
+                    <p className="text-sm font-medium text-gray-900 flex-1 pr-2">{item.name}</p>
+                    <button onClick={() => removeFromCart(item._id)} className="text-gray-300 hover:text-red-500">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => updateQty(item._id, -1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
+                        <Minus size={12} />
+                      </button>
+                      <span className="text-sm w-5 text-center">{item.qty}</span>
+                      <button onClick={() => updateQty(item._id, 1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
+                        <Plus size={12} />
+                      </button>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.price * item.qty)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-gray-200 p-4 space-y-2">
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Tax</span><span>{formatCurrency(tax)}</span>
+              </div>
+              <div className="flex justify-between text-base font-bold text-gray-900">
+                <span>Total</span><span>{formatCurrency(total)}</span>
+              </div>
+              <Button
+                className="w-full mt-2"
+                disabled={cart.length === 0 || paying}
+                onClick={() => { closeDrawer(); openPaymentModal() }}
+              >
+                <CreditCard size={15} /> {paying ? 'Processing…' : 'Pay now'}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
 
       <Modal
         open={paymentOpen}

@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from 'clsx'
 
 export function cn(...inputs: ClassValue[]) {
-  return inputs.filter(Boolean).join(' ')
+  return clsx(inputs)
 }
 
 export function formatCurrency(amount: number, currency = 'INR'): string {
@@ -30,5 +30,9 @@ export function slugify(text: string): string {
 }
 
 export function generateInvoiceNo(counter: number, prefix = 'INV'): string {
+  return `${prefix}-${String(counter).padStart(5, '0')}`
+}
+
+export function generatePurchaseOrderNo(counter: number, prefix = 'PO'): string {
   return `${prefix}-${String(counter).padStart(5, '0')}`
 }
