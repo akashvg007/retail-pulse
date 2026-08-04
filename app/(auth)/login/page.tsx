@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Link from 'next/link'
+import { auth } from '@/lib/auth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Zap } from 'lucide-react'
@@ -38,8 +39,11 @@ export default function LoginPage() {
       setServerError('Invalid email or password')
       return
     }
-
-    router.push('/dashboard')
+    const session = await auth()
+    if (session?.user?.role === 'staff') {
+      router.push('/dashboard/pos')
+    }
+    else router.push('/dashboard')
     router.refresh()
   }
 

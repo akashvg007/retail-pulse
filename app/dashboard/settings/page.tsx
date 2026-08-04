@@ -7,9 +7,21 @@ import { useState } from 'react'
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm<any>()
+  const { register, handleSubmit, formState: { isSubmitting } } = useForm<{
+    name: string
+    gstNumber: string
+    address: string
+    taxRate: number
+    currency: string
+  }>()
 
-  async function onSubmit(data: any) {
+  async function onSubmit(data: {
+    name: string
+    gstNumber: string
+    address: string
+    taxRate: number
+    currency: string
+  }) {
     await fetch('/api/tenants/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

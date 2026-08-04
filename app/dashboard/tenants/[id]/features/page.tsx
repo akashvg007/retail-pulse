@@ -37,7 +37,7 @@ export default function TenantFeaturesPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6 p-4 sm:p-6">
+    <div className="max-w-2xl space-y-6 p-4 sm:p-6 h-screen">
       <div className="flex items-center gap-3">
         <Link href="/dashboard/tenants">
           <button className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50">
@@ -80,7 +80,7 @@ export default function TenantFeaturesPage() {
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pb-4">
         <Button onClick={save} disabled={saving}>
           <Save size={14} /> {saving ? 'Saving…' : 'Save changes'}
         </Button>

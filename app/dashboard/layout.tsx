@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { getTenantFeatures } from '@/lib/features'
+import { getStaffFeatures, getTenantFeatures } from '@/lib/features'
 import { FeatureProvider } from '@/contexts/FeatureContext'
 import { Sidebar } from '@/components/Sidebar'
 import { redirect } from 'next/navigation'
@@ -18,6 +18,8 @@ export default async function DashboardLayout({
   if (session.user.role === 'super_admin') {
     // Super admin always has all features
     features = Object.fromEntries(ALL_FEATURE_KEYS.map((k) => [k, true])) as TenantFeaturesMap
+  } else if (session.user.role === 'staff' && session.user.id && session.user.tenantId) {
+    features = await getStaffFeatures(session.user.id, session.user.tenantId)
   } else {
     features = await getTenantFeatures(session.user.tenantId!)
   }

@@ -8,8 +8,8 @@ export async function GET(req: NextRequest) {
   const ctx = await requireAuth()
   if (ctx instanceof NextResponse) return ctx
 
-  const denied = await requireFeature(ctx, 'inventory')
-  if (denied) return denied
+  // const denied = await requireFeature(ctx, 'inventory')
+  // if (denied) return denied
 
   await connectDB()
   const { searchParams } = new URL(req.url)

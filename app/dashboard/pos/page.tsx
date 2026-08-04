@@ -1,42 +1,45 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import useSWR from 'swr'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { Input } from '@/components/ui/Input'
-import { Modal } from '@/components/ui/Modal'
 import { FeatureGate } from '@/components/FeatureGate'
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard, Search, X, ChevronDown } from 'lucide-react'
+import { ShoppingCart, Search, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
+import { ProductGrid } from '@/components/pos/ProductGrid'
+import { CartPanel } from '@/components/pos/CartPanel'
+import { PaymentModal } from '@/components/pos/PaymentModal'
+import { CustomerModal } from '@/components/pos/CustomerModal'
+import { MobileCartDrawer } from '@/components/pos/MobileCartDrawer'
+import type { CartItem, CustomerData, CustomerFormData, PaymentOption, ProductData } from '@/components/pos/types'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
-interface ProductData {
-  _id: string
-  name: string
-  sku: string
-  category: string
-  price: number
-  taxRate: number
-  stockQty: number
+
+type RazorpayResponse = {
+  razorpay_order_id: string
+  razorpay_payment_id: string
+  razorpay_signature: string
 }
 
-interface CartItem {
-  _id: string
-  name: string
-  price: number
-  taxRate: number
-  qty: number
+type RazorpayInstance = {
+  open: () => void
+  on: (event: string, callback: () => void) => void
 }
 
-interface CustomerData {
-  _id: string
+type RazorpayOptions = {
+  key: string
+  amount: number
+  currency: string
+  order_id: string
   name: string
-  email?: string
-  phone?: string
+  description: string
+  handler: (response: RazorpayResponse) => void | Promise<void>
 }
 
-type PaymentOption = 'upi' | 'cash' | 'credit'
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance
+  }
+}
 
 function getDefaultCreditDueDate() {
   const date = new Date()
@@ -59,7 +62,7 @@ export default function POSPage() {
   const [lastAddedId, setLastAddedId] = useState<string | null>(null)
   const [paying, setPaying] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
-  const [paymentOption, setPaymentOption] = useState<PaymentOption>('upi')
+  const [paymentOption, setPaymentOption] = useState<PaymentOption>('online')
   const [cashReceived, setCashReceived] = useState('')
   const [creditDueDate, setCreditDueDate] = useState(getDefaultCreditDueDate())
   const [paymentError, setPaymentError] = useState('')
@@ -68,7 +71,7 @@ export default function POSPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [customerOpen, setCustomerOpen] = useState(false)
   const [creatingCustomer, setCreatingCustomer] = useState(false)
-  const [customerForm, setCustomerForm] = useState({ name: '', email: '', phone: '' })
+  const [customerForm, setCustomerForm] = useState<CustomerFormData>({ name: '', email: '', phone: '' })
   const [customerFormError, setCustomerFormError] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchTerm = searchQuery.trim()
@@ -81,16 +84,6 @@ export default function POSPage() {
   const customers: CustomerData[] = Array.isArray(customersResponse?.data) ? customersResponse.data : []
   const customerApiError = typeof customersResponse?.error === 'string' ? customersResponse.error : ''
   const selectedCustomer = customers.find((customer) => customer._id === selectedCustomerId)
-
-  const filteredCustomers = customers.filter((customer) => {
-    const query = customerSearch.toLowerCase().trim()
-    if (!query) return true
-    return (
-      customer.name.toLowerCase().includes(query) ||
-      (customer.email ?? '').toLowerCase().includes(query) ||
-      (customer.phone ?? '').toLowerCase().includes(query)
-    )
-  })
 
   // Filter products by search query (name, SKU, or category)
   const products = allProducts.filter((p: ProductData) => {
@@ -170,7 +163,7 @@ export default function POSPage() {
 
   function resetPaymentState() {
     setPaymentOpen(false)
-    setPaymentOption('upi')
+    setPaymentOption('online')
     setCashReceived('')
     setCreditDueDate(getDefaultCreditDueDate())
     setPaymentError('')
@@ -184,7 +177,7 @@ export default function POSPage() {
 
   function openPaymentModal() {
     if (cart.length === 0 || paying) return
-    setPaymentOption('upi')
+    setPaymentOption('online')
     setCashReceived(total.toFixed(2))
     setCreditDueDate(getDefaultCreditDueDate())
     setPaymentError('')
@@ -214,7 +207,7 @@ export default function POSPage() {
     return invoice
   }
 
-  async function processUPIPayment() {
+  async function processOnlinePayment() {
     const invoice = await createInvoice()
 
     const orderRes = await fetch('/api/payments/create-order', {
@@ -230,7 +223,7 @@ export default function POSPage() {
 
     const { data: order } = await orderRes.json()
 
-    const Razorpay = (window as any).Razorpay
+    const Razorpay = window.Razorpay
     if (!Razorpay) {
       throw new Error('Razorpay SDK not loaded. Add it to your HTML <head>.')
     }
@@ -243,7 +236,7 @@ export default function POSPage() {
         order_id: order.orderId,
         name: 'RetailPulse',
         description: `Invoice ${invoice.invoiceNo}`,
-        handler: async (response: any) => {
+        handler: async (response: RazorpayResponse) => {
           try {
             const verifyRes = await fetch('/api/payments/verify', {
               method: 'POST',
@@ -268,7 +261,24 @@ export default function POSPage() {
       payment.open()
     })
 
-    alert('Payment successful!')
+    alert('Online payment successful!')
+  }
+
+  async function processUPIPayment() {
+    const invoice = await createInvoice()
+    const res = await fetch('/api/payments/upi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invoiceId: invoice._id }),
+    })
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}))
+      throw new Error(payload?.error ?? 'Unable to record UPI payment')
+    }
+
+    clearSaleState()
+    alert('UPI payment recorded successfully.')
   }
 
   async function processCashPayment() {
@@ -321,14 +331,16 @@ export default function POSPage() {
         await processCashPayment()
       } else if (paymentOption === 'credit') {
         await processCreditSale()
-      } else {
+      } else if (paymentOption === 'upi') {
         await processUPIPayment()
+      } else {
+        await processOnlinePayment()
       }
       resetPaymentState()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to process payment'
       setPaymentError(message)
-      if (paymentOption === 'upi') {
+      if (paymentOption === 'upi' || paymentOption === 'online') {
         alert(message)
       }
     } finally {
@@ -340,6 +352,10 @@ export default function POSPage() {
     setCustomerForm({ name: '', email: '', phone: '' })
     setCustomerFormError('')
     setCustomerOpen(true)
+  }
+
+  function handleCustomerFieldChange(field: keyof CustomerFormData, value: string) {
+    setCustomerForm((prev) => ({ ...prev, [field]: value }))
   }
 
   async function createCustomer(e: React.FormEvent<HTMLFormElement>) {
@@ -386,183 +402,57 @@ export default function POSPage() {
   return (
     <FeatureGate feature="pos" fallback={<LockedPage />}>
       <div className="flex h-full flex-col xl:flex-row">
-        {/* Product grid */}
-        <div className="flex flex-1 flex-col overflow-y-auto p-4 pb-24 sm:p-6 xl:pb-6">
-          <div className="mb-6">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <h1 className="text-xl font-bold text-gray-900">Point of Sale</h1>
-              <p className="text-xs text-gray-400">
-                {searchTerm ? `${products.length} matching products` : `${products.length} products`}
-                {isLoading ? '…' : ''}
-              </p>
-            </div>
-
-            {/* Search & Barcode input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search products or scan barcode…"
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="w-full pl-10 pr-8 py-2.5 rounded-lg border border-gray-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm"
-              />
-              {searchQuery && (
-                <button
-                  onClick={clearSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Product grid */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {products.length > 0 ? (
-              products.map((product: ProductData) => (
-                <button
-                  key={product._id}
-                  onClick={() => addToCart(product)}
-                  className={`rounded-xl border p-4 text-left transition-all duration-200 ${
-                    lastAddedId === product._id
-                      ? 'border-indigo-500 bg-indigo-50 scale-95 shadow-inner'
-                      : 'border-gray-200 bg-white hover:border-indigo-400 hover:shadow-sm'
-                  }`}
-                >
-                  <p className="font-medium text-sm text-gray-900 truncate">{product.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{product.category}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">SKU: {product.sku}</p>
-                  <p className="text-base font-bold text-indigo-600 mt-2">{formatCurrency(product.price)}</p>
-                  <Badge variant={product.stockQty > 5 ? 'green' : 'yellow'} className="mt-1">
-                    {product.stockQty} left
-                  </Badge>
-                </button>
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-gray-400">
-                <Search size={32} className="mb-2 opacity-50" />
-                <p className="text-sm">No products found</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Cart sidebar — desktop only */}
-        <div className="hidden xl:flex w-full flex-col border-t border-gray-200 bg-white xl:w-80 xl:border-l xl:border-t-0">
-          <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-4">
-            <ShoppingCart size={18} className="text-gray-500" />
-            <span className="font-semibold text-gray-900">Cart ({cart.length})</span>
-          </div>
-
-          <div className="border-b border-gray-200 px-4 py-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Customer</p>
+        <div className="flex flex-1 flex-col">
+          <div className="relative p-4 pb-0 sm:p-6">
+            <Search className="absolute left-8 top-9 sm:top-2/4 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search products or scan barcode…"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="w-full pl-10 pr-8 py-2.5 rounded-lg border border-gray-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm"
+            />
+            {searchQuery && (
               <button
-                onClick={openCreateCustomer}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                type="button"
+                onClick={clearSearch}
+                className="absolute right-8 top-9 sm:top-2/4 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                + New
+                <X size={16} />
               </button>
-            </div>
-
-            {selectedCustomer ? (
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-3 py-2 text-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="font-semibold text-indigo-900">{selectedCustomer.name}</p>
-                    {selectedCustomer.phone && <p className="text-xs text-indigo-700">{selectedCustomer.phone}</p>}
-                    {selectedCustomer.email && <p className="text-xs text-indigo-700">{selectedCustomer.email}</p>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCustomerId('')
-                      setCustomerSearch('')
-                    }}
-                    className="text-indigo-400 hover:text-indigo-700"
-                    aria-label="Remove customer"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <Input
-                  placeholder="Search customer by name, email, phone"
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                />
-                <div className="max-h-28 overflow-y-auto rounded-lg border border-gray-200">
-                  {filteredCustomers.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-gray-500">No customers found</p>
-                  ) : (
-                    filteredCustomers.slice(0, 8).map((customer) => (
-                      <button
-                        key={customer._id}
-                        type="button"
-                        onClick={() => setSelectedCustomerId(customer._id)}
-                        className="block w-full border-b border-gray-100 px-3 py-2 text-left text-xs hover:bg-gray-50 last:border-b-0"
-                      >
-                        <p className="font-medium text-gray-900">{customer.name}</p>
-                        <p className="text-gray-500">{customer.phone || customer.email || 'No contact details'}</p>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </>
             )}
-
-            {customerApiError && <p className="text-xs text-amber-700">{customerApiError}</p>}
           </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-            {cart.length === 0 && (
-              <p className="text-center text-sm text-gray-400 py-10">Cart is empty</p>
-            )}
-            {cart.map((item) => (
-              <div key={item._id} className="px-4 py-3">
-                <div className="flex items-start justify-between">
-                  <p className="text-sm font-medium text-gray-900 flex-1 pr-2">{item.name}</p>
-                  <button onClick={() => removeFromCart(item._id)} className="text-gray-300 hover:text-red-500">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between mt-1.5">
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => updateQty(item._id, -1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
-                      <Minus size={12} />
-                    </button>
-                    <span className="text-sm w-5 text-center">{item.qty}</span>
-                    <button onClick={() => updateQty(item._id, 1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.price * item.qty)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-gray-200 p-4 space-y-2">
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Tax</span><span>{formatCurrency(tax)}</span>
-            </div>
-            <div className="flex justify-between text-base font-bold text-gray-900">
-              <span>Total</span><span>{formatCurrency(total)}</span>
-            </div>
-            <Button className="w-full mt-2" disabled={cart.length === 0 || paying} onClick={openPaymentModal}>
-              <CreditCard size={15} /> {paying ? 'Processing…' : 'Pay now'}
-            </Button>
-          </div>
+          <ProductGrid
+            products={products}
+            isLoading={isLoading}
+            lastAddedId={lastAddedId}
+            searchTerm={searchTerm}
+            onAddToCart={addToCart}
+          />
         </div>
+
+        <CartPanel
+          cart={cart}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          selectedCustomer={selectedCustomer}
+          customers={customers}
+          customerSearch={customerSearch}
+          customerApiError={customerApiError}
+          cartCount={cartCount}
+          paying={paying}
+          onRemoveCustomer={() => {
+            setSelectedCustomerId('')
+            setCustomerSearch('')
+          }}
+          onSearchCustomer={setCustomerSearch}
+          onSelectCustomer={setSelectedCustomerId}
+          onCreateCustomer={openCreateCustomer}
+          onUpdateQty={updateQty}
+          onRemoveFromCart={removeFromCart}
+          onOpenPayment={openPaymentModal}
+        />
       </div>
 
       {/* Mobile sticky bottom banner */}
@@ -586,287 +476,72 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Mobile cart bottom drawer */}
-      {cartDrawerOpen && (
-        <>
-          <div
-            onClick={closeDrawer}
-            className={`xl:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 ${drawerVisible ? 'opacity-100' : 'opacity-0'}`}
-          />
-          <div className={`xl:hidden fixed bottom-0 left-0 right-0 z-50 flex max-h-[85vh] flex-col rounded-t-2xl bg-white shadow-2xl transition-transform duration-300 ease-out ${drawerVisible ? 'translate-y-0' : 'translate-y-full'}`}>
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <ShoppingCart size={18} className="text-gray-500" />
-                <span className="font-semibold text-gray-900">Cart ({cartCount})</span>
-              </div>
-              <button
-                onClick={closeDrawer}
-                className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-              >
-                <ChevronDown size={20} />
-              </button>
-            </div>
+      <MobileCartDrawer
+        open={cartDrawerOpen}
+        drawerVisible={drawerVisible}
+        cart={cart}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        cartCount={cartCount}
+        selectedCustomer={selectedCustomer}
+        customers={customers}
+        customerSearch={customerSearch}
+        customerApiError={customerApiError}
+        paying={paying}
+        onClose={closeDrawer}
+        onRemoveCustomer={() => {
+          setSelectedCustomerId('')
+          setCustomerSearch('')
+        }}
+        onSearchCustomer={setCustomerSearch}
+        onSelectCustomer={setSelectedCustomerId}
+        onCreateCustomer={openCreateCustomer}
+        onUpdateQty={updateQty}
+        onRemoveFromCart={removeFromCart}
+        onOpenPayment={() => {
+          closeDrawer()
+          openPaymentModal()
+        }}
+      />
 
-            <div className="border-b border-gray-200 px-4 py-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Customer</p>
-                <button
-                  onClick={openCreateCustomer}
-                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
-                  type="button"
-                >
-                  + New
-                </button>
-              </div>
-              {selectedCustomer ? (
-                <div className="rounded-lg border border-indigo-200 bg-indigo-50/70 px-3 py-2 text-sm">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-indigo-900">{selectedCustomer.name}</p>
-                      {selectedCustomer.phone && <p className="text-xs text-indigo-700">{selectedCustomer.phone}</p>}
-                      {selectedCustomer.email && <p className="text-xs text-indigo-700">{selectedCustomer.email}</p>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setSelectedCustomerId(''); setCustomerSearch('') }}
-                      className="text-indigo-400 hover:text-indigo-700"
-                      aria-label="Remove customer"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <Input
-                    placeholder="Search customer by name, email, phone"
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                  />
-                  <div className="max-h-28 overflow-y-auto rounded-lg border border-gray-200">
-                    {filteredCustomers.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-gray-500">No customers found</p>
-                    ) : (
-                      filteredCustomers.slice(0, 8).map((customer) => (
-                        <button
-                          key={customer._id}
-                          type="button"
-                          onClick={() => setSelectedCustomerId(customer._id)}
-                          className="block w-full border-b border-gray-100 px-3 py-2 text-left text-xs hover:bg-gray-50 last:border-b-0"
-                        >
-                          <p className="font-medium text-gray-900">{customer.name}</p>
-                          <p className="text-gray-500">{customer.phone || customer.email || 'No contact details'}</p>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-              {customerApiError && <p className="text-xs text-amber-700">{customerApiError}</p>}
-            </div>
-
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-              {cart.map((item) => (
-                <div key={item._id} className="px-4 py-3">
-                  <div className="flex items-start justify-between">
-                    <p className="text-sm font-medium text-gray-900 flex-1 pr-2">{item.name}</p>
-                    <button onClick={() => removeFromCart(item._id)} className="text-gray-300 hover:text-red-500">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between mt-1.5">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateQty(item._id, -1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
-                        <Minus size={12} />
-                      </button>
-                      <span className="text-sm w-5 text-center">{item.qty}</span>
-                      <button onClick={() => updateQty(item._id, 1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.price * item.qty)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="border-t border-gray-200 p-4 space-y-2">
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-500">
-                <span>Tax</span><span>{formatCurrency(tax)}</span>
-              </div>
-              <div className="flex justify-between text-base font-bold text-gray-900">
-                <span>Total</span><span>{formatCurrency(total)}</span>
-              </div>
-              <Button
-                className="w-full mt-2"
-                disabled={cart.length === 0 || paying}
-                onClick={() => { closeDrawer(); openPaymentModal() }}
-              >
-                <CreditCard size={15} /> {paying ? 'Processing…' : 'Pay now'}
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
-
-      <Modal
+      <PaymentModal
         open={paymentOpen}
+        payableAmount={total}
+        paymentOption={paymentOption}
+        cashReceived={cashReceived}
+        creditDueDate={creditDueDate}
+        paymentError={paymentError}
+        paying={paying}
+        cartCount={cart.length}
+        cashBalance={cashBalance}
         onClose={() => {
           if (paying) return
           resetPaymentState()
         }}
-        title="Select payment option"
-      >
-        <div className="space-y-4">
-          <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-            <p className="text-xs uppercase tracking-wide text-gray-500">Payable amount</p>
-            <p className="text-lg font-semibold text-gray-900">{formatCurrency(total)}</p>
-          </div>
+        onSelectPaymentOption={(option) => {
+          setPaymentOption(option)
+          setPaymentError('')
+        }}
+        onCashReceivedChange={(value) => {
+          setCashReceived(value)
+          setPaymentError('')
+        }}
+        onCreditDueDateChange={(value) => {
+          setCreditDueDate(value)
+        }}
+        onConfirmPayment={confirmPayment}
+      />
 
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setPaymentOption('upi')
-                setPaymentError('')
-              }}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                paymentOption === 'upi'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              UPI
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPaymentOption('cash')
-                setPaymentError('')
-              }}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                paymentOption === 'cash'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Cash
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPaymentOption('credit')
-                setPaymentError('')
-              }}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
-                paymentOption === 'credit'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Credit
-            </button>
-          </div>
-
-          {paymentOption === 'cash' && (
-            <div className="space-y-2 rounded-lg border border-gray-200 px-3 py-3">
-              <Input
-                label="Amount received"
-                type="number"
-                min={0}
-                step="0.01"
-                value={cashReceived}
-                onChange={(e) => {
-                  setCashReceived(e.target.value)
-                  setPaymentError('')
-                }}
-                placeholder="Enter amount given by customer"
-              />
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">Balance</span>
-                <span className={cashBalance < 0 ? 'font-semibold text-red-600' : 'font-semibold text-green-700'}>
-                  {formatCurrency(cashBalance)}
-                </span>
-              </div>
-              {cashBalance < 0 && (
-                <p className="text-xs text-red-600">Received amount is less than total payable amount.</p>
-              )}
-            </div>
-          )}
-
-          {paymentOption === 'credit' && (
-            <div className="space-y-2 rounded-lg border border-gray-200 px-3 py-3">
-              <Input
-                label="Due date"
-                type="date"
-                value={creditDueDate}
-                onChange={(e) => setCreditDueDate(e.target.value)}
-              />
-              <p className="text-xs text-gray-500">This will create an invoice for the customer and mark it as a credit sale.</p>
-            </div>
-          )}
-
-          {paymentError && <p className="text-xs text-red-600">{paymentError}</p>}
-
-          <div className="flex gap-2 pt-1">
-            <Button
-              type="button"
-              variant="secondary"
-              className="text-black"
-              onClick={resetPaymentState}
-              disabled={paying}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              onClick={confirmPayment}
-              disabled={
-                paying ||
-                cart.length === 0 ||
-                (paymentOption === 'cash' && (!Number.isFinite(cashAmount) || cashAmount < total))
-              }
-            >
-              {paying ? 'Processing…' : 'Confirm payment'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={customerOpen} onClose={() => setCustomerOpen(false)} title="Create customer">
-        <form onSubmit={createCustomer} className="space-y-3">
-          <Input
-            label="Name"
-            value={customerForm.name}
-            onChange={(e) => setCustomerForm((prev) => ({ ...prev, name: e.target.value }))}
-            required
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={customerForm.email}
-            onChange={(e) => setCustomerForm((prev) => ({ ...prev, email: e.target.value }))}
-          />
-          <Input
-            label="Phone"
-            value={customerForm.phone}
-            onChange={(e) => setCustomerForm((prev) => ({ ...prev, phone: e.target.value }))}
-          />
-          {customerFormError && <p className="text-xs text-red-600">{customerFormError}</p>}
-          <div className="flex gap-2 pt-2">
-            <Button type="submit" className="flex-1" disabled={creatingCustomer}>
-              {creatingCustomer ? 'Creating…' : 'Create customer'}
-            </Button>
-            <Button type="button" variant="secondary" className="text-black" onClick={() => setCustomerOpen(false)}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <CustomerModal
+        open={customerOpen}
+        form={customerForm}
+        error={customerFormError}
+        creating={creatingCustomer}
+        onClose={() => setCustomerOpen(false)}
+        onChange={handleCustomerFieldChange}
+        onSubmit={createCustomer}
+      />
     </FeatureGate>
   )
 }

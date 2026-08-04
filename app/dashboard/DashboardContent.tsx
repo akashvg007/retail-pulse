@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic'
 import { auth } from '@/lib/auth'
-import { getTenantFeatures } from '@/lib/features'
+import { getStaffFeatures, getTenantFeatures } from '@/lib/features'
 import { getDashboardReportsData } from '@/lib/reports-data'
 import { KPICard } from '@/components/KPICard'
 import { FeatureGate } from '@/components/FeatureGate'
@@ -21,6 +21,17 @@ type InvoiceStatusChartPoint = {
   pending: number
 }
 
+function LockedPage() {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="text-lg font-semibold text-slate-900">Access restricted</h2>
+      <p className="mt-2 text-sm text-slate-600">
+        You do not have access to the dashboard for this tenant.
+      </p>
+    </div>
+  )
+}
+
 export async function DashboardContent() {
   const session = await auth()
   const tenantId = session?.user?.tenantId
@@ -33,7 +44,10 @@ export async function DashboardContent() {
   let invoiceData: InvoiceStatusChartPoint[] = []
 
   if (tenantId) {
-    const features = await getTenantFeatures(tenantId)
+    const features =
+      session?.user?.role === 'staff' && session.user.id
+        ? await getStaffFeatures(session.user.id, tenantId)
+        : await getTenantFeatures(tenantId)
     const reportData = await getDashboardReportsData(tenantId)
 
     invoiceCount = features.invoicing ? reportData.invoiceCount : 0
@@ -47,41 +61,43 @@ export async function DashboardContent() {
   const isSuper = session?.user?.role === 'super_admin'
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {isSuper ? 'Platform overview' : 'Your store at a glance'}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <FeatureGate feature="payments">
-          <KPICard title="Total Revenue" value={totalRevenue} isCurrency icon={DollarSign} iconColor="text-green-600" />
-        </FeatureGate>
-        <FeatureGate feature="invoicing">
-          <KPICard title="Invoices" value={invoiceCount} icon={FileText} iconColor="text-blue-600" />
-        </FeatureGate>
-        <FeatureGate feature="crm">
-          <KPICard title="Customers" value={customerCount} icon={Users} iconColor="text-purple-600" />
-        </FeatureGate>
-        <FeatureGate feature="inventory">
-          <KPICard title="Products" value={productCount} icon={Package} iconColor="text-orange-600" />
-        </FeatureGate>
-      </div>
-
-      <FeatureGate feature="reports">
-        <DashboardChartsSection revenueData={revenueData} invoiceData={invoiceData} />
-      </FeatureGate>
-
-      {!tenantId && isSuper && (
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-4 sm:px-6 sm:py-5">
-          <h2 className="font-semibold text-indigo-900">Super Admin Console</h2>
-          <p className="text-sm text-indigo-700 mt-1">
-            Manage tenants and feature flags from the Admin section in the sidebar.
+    <FeatureGate feature="dashboard" fallback={<LockedPage />}>
+      <div className="space-y-6 p-4 sm:p-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {isSuper ? 'Platform overview' : 'Your store at a glance'}
           </p>
         </div>
-      )}
-    </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <FeatureGate feature="payments">
+            <KPICard title="Total Revenue" value={totalRevenue} isCurrency icon={DollarSign} iconColor="text-green-600" />
+          </FeatureGate>
+          <FeatureGate feature="invoicing">
+            <KPICard title="Invoices" value={invoiceCount} icon={FileText} iconColor="text-blue-600" />
+          </FeatureGate>
+          <FeatureGate feature="crm">
+            <KPICard title="Customers" value={customerCount} icon={Users} iconColor="text-purple-600" />
+          </FeatureGate>
+          <FeatureGate feature="inventory">
+            <KPICard title="Products" value={productCount} icon={Package} iconColor="text-orange-600" />
+          </FeatureGate>
+        </div>
+
+        <FeatureGate feature="reports">
+          <DashboardChartsSection revenueData={revenueData} invoiceData={invoiceData} />
+        </FeatureGate>
+
+        {!tenantId && isSuper && (
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-4 sm:px-6 sm:py-5">
+            <h2 className="font-semibold text-indigo-900">Super Admin Console</h2>
+            <p className="text-sm text-indigo-700 mt-1">
+              Manage tenants and feature flags from the Admin section in the sidebar.
+            </p>
+          </div>
+        )}
+      </div>
+    </FeatureGate>
   )
 }

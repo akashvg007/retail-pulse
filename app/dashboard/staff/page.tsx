@@ -14,7 +14,7 @@ import { FeatureGate } from '@/components/FeatureGate'
 import { Plus, Trash2, Settings2 } from 'lucide-react'
 import ModalFooter from '@/components/ModalFooter'
 import { useFeatures } from '@/contexts/FeatureContext'
-import { FEATURE_META, ALL_FEATURE_KEYS, type FeatureKey } from '@/types/features'
+import { FEATURE_META, ALL_FEATURE_KEYS } from '@/types/features'
 
 type StaffForm = z.infer<typeof staffSchema>
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -67,7 +67,7 @@ export default function StaffPage() {
   const staffList = data?.data ?? []
   const tenantFeatures = useFeatures()
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<StaffForm>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<StaffForm>({
     resolver: zodResolver(staffSchema) as Resolver<StaffForm>,
     defaultValues: { features: [] },
   })

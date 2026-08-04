@@ -22,7 +22,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, feature: 'dashboard' },
   { href: '/dashboard/inventory', label: 'Inventory', icon: Package, feature: 'inventory' },
   { href: '/dashboard/customers', label: 'Customers', icon: Users, feature: 'crm' },
   { href: '/dashboard/suppliers', label: 'Suppliers', icon: Truck, feature: 'supplier_management' },
@@ -78,6 +78,7 @@ function Brand() {
 
 function SidebarContent({ session, onNavigate }: SidebarProps & { onNavigate?: () => void }) {
   const isSuperAdmin = session?.user?.role === 'super_admin'
+  const hasDashboardAccess = useFeature('dashboard') || isSuperAdmin
 
   return (
     <>
@@ -86,7 +87,8 @@ function SidebarContent({ session, onNavigate }: SidebarProps & { onNavigate?: (
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {navItems.map((item) => (
+        {hasDashboardAccess && <NavLink key="/dashboard" item={navItems[0]} onNavigate={onNavigate} />}
+        {navItems.slice(1).map((item) => (
           <NavLink key={item.href} item={item} onNavigate={onNavigate} />
         ))}
 

@@ -19,10 +19,11 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 export default function CustomersPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<CustomerForm | null>(null)
+  console.log("editing ==> ", editing);
   const { data, isLoading } = useSWR('/api/customers?limit=50', fetcher)
   const customers = data?.data ?? []
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<CustomerForm>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema),
   })
 
@@ -39,7 +40,7 @@ export default function CustomersPage() {
   }
 
   async function onSubmit(data: CustomerForm) {
-    const url = editing ? `/api/customers/${editing?.id}` : '/api/customers'
+    const url = editing ? `/api/customers/${editing?._id}` : '/api/customers'
     await fetch(url, {
       method: editing ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -72,7 +73,7 @@ export default function CustomersPage() {
             { key: '_id',from:'customer', label: '', render: (_: string, row: CustomerForm) => (
               <div className="flex gap-2">
                 <button onClick={() => openEdit(row)} className="text-gray-400 hover:text-indigo-600"><Pencil size={14} /></button>
-                <button onClick={() => deleteCustomer(row?.id ?? '')} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+                <button onClick={() => deleteCustomer(row?._id ?? '')} className="text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
               </div>
             )},
           ]}

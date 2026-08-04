@@ -1,4 +1,5 @@
 export type FeatureKey =
+  | 'dashboard'
   | 'invoicing'
   | 'inventory'
   | 'crm'
@@ -13,6 +14,7 @@ export type FeatureKey =
   | 'email_notifications'
 
 export const ALL_FEATURE_KEYS: FeatureKey[] = [
+  'dashboard',
   'invoicing',
   'inventory',
   'crm',
@@ -28,6 +30,7 @@ export const ALL_FEATURE_KEYS: FeatureKey[] = [
 ]
 
 export const FEATURE_META: Record<FeatureKey, { name: string; description: string }> = {
+  dashboard: { name: 'Dashboard', description: 'Access the main dashboard overview' },
   invoicing: { name: 'Invoicing', description: 'Create, send and manage invoices' },
   inventory: { name: 'Inventory', description: 'Track products, SKUs and stock levels' },
   crm: { name: 'CRM', description: 'Manage customers and contact information' },

@@ -25,7 +25,7 @@ export const productSchema = z.object({
 })
 
 export const customerSchema = z.object({
-  id: z.string().optional(),
+  _id: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
