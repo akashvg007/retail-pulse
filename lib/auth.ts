@@ -2,6 +2,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { connectDB } from './db'
 import { User } from '@/models/User'
+import { Tenant } from '@/models/Tenant'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { authConfig } from '@/auth.config'
@@ -28,6 +29,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(parsed.data.password, user.passwordHash)
         if (!valid) return null
+
+        if (user.role !== 'super_admin') {
+          if (!user.tenantId) return null
+          const tenant = await Tenant.findById(user.tenantId).select({ active: 1 }).lean()
+          if (!tenant?.active) return null
+        }
 
         return {
           id: user._id.toString(),

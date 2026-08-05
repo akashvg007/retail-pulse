@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import type { UserRole } from '@/models/User'
 import { hasFeature, type TenantFeaturesMap } from './features'
 import type { FeatureKey } from '@/types/features'
+import { connectDB } from './db'
+import { Tenant } from '@/models/Tenant'
 
 export interface SessionContext {
   userId: string
@@ -13,10 +15,22 @@ export interface SessionContext {
 
 export async function requireAuth(): Promise<SessionContext | NextResponse> {
   const session = await auth()
-  console.log("session ==> ", session);
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  if (session.user.role !== 'super_admin') {
+    if (!session.user.tenantId) {
+      return NextResponse.json({ error: 'Tenant access suspended' }, { status: 403 })
+    }
+
+    await connectDB()
+    const tenant = await Tenant.findById(session.user.tenantId).select({ active: 1 }).lean()
+    if (!tenant?.active) {
+      return NextResponse.json({ error: 'Tenant access suspended' }, { status: 403 })
+    }
+  }
+
   return {
     userId: session.user.id,
     name: session?.user?.name || 'staff1',
