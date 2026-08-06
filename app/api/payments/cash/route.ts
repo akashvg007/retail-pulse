@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Invoice } from '@/models/Invoice'
 import { Payment } from '@/models/Payment'
+import { deductInventoryForInvoiceSale } from '@/lib/inventory-sale'
 
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth()
@@ -30,6 +31,16 @@ export async function POST(req: NextRequest) {
   }
   if (received < invoice.total) {
     return NextResponse.json({ error: 'Received amount is less than invoice total' }, { status: 400 })
+  }
+
+  try {
+    await deductInventoryForInvoiceSale({
+      invoiceId,
+      tenantId: String(ctx.tenantId),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to update inventory for this sale'
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 
   const payment = await Payment.create({

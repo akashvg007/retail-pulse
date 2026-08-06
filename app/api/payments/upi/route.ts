@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Invoice } from '@/models/Invoice'
 import { Payment } from '@/models/Payment'
+import { deductInventoryForInvoiceSale } from '@/lib/inventory-sale'
 
 export async function POST(req: NextRequest) {
   const ctx = await requireAuth()
@@ -22,6 +23,16 @@ export async function POST(req: NextRequest) {
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
   if (invoice.status === 'paid') {
     return NextResponse.json({ error: 'Invoice already paid' }, { status: 409 })
+  }
+
+  try {
+    await deductInventoryForInvoiceSale({
+      invoiceId,
+      tenantId: String(ctx.tenantId),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to update inventory for this sale'
+    return NextResponse.json({ error: message }, { status: 400 })
   }
 
   const payment = await Payment.create({

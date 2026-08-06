@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { Invoice } from '@/models/Invoice'
 import { Payment } from '@/models/Payment'
+import { deductInventoryForInvoiceSale } from '@/lib/inventory-sale'
 import crypto from 'crypto'
 
 // Razorpay webhook — no session auth, but signature-verified
@@ -30,6 +31,19 @@ export async function POST(req: NextRequest) {
   if (event === 'payment.captured') {
     const payment = payload.payload.payment.entity
     const orderId = payment.order_id
+    const existingInvoice = await Invoice.findOne({ razorpayOrderId: orderId }).lean()
+    if (existingInvoice) {
+      try {
+        await deductInventoryForInvoiceSale({
+          invoiceId: String(existingInvoice._id),
+          tenantId: String(existingInvoice.tenantId),
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to update inventory'
+        return NextResponse.json({ error: message }, { status: 400 })
+      }
+    }
+
     const invoice = await Invoice.findOneAndUpdate(
       { razorpayOrderId: orderId, status: { $ne: 'paid' } },
       { status: 'paid' },

@@ -128,3 +128,24 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  .thermal-print {
+    width: 72mm;
+    max-width: 72mm;
+    box-sizing: border-box;
+    border: 0 !important;
+    margin: 0 auto;
+    padding: 0;
+  }
+
+  .thermal-print-detailed {
+    width: 72mm;
+    max-width: 72mm;
+  }
+
+  .thermal-print-compact {
+    width: 58mm;
+    max-width: 58mm;
+  }
+}

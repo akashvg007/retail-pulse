@@ -3,9 +3,10 @@ import { z } from 'zod'
 import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { PurchaseOrder } from '@/models/PurchaseOrder'
+import { Product } from '@/models/Product'
 
 const updatePurchaseSchema = z.object({
-  action: z.enum(['approve', 'send', 'receive', 'cancel']).optional(),
+  action: z.enum(['approve', 'send', 'receive', 'cancel', 'add_to_inventory']).optional(),
   expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),
 })
@@ -13,6 +14,7 @@ const updatePurchaseSchema = z.object({
 function applyAction(order: {
   status: string
   total: number
+  inventoryPostedAt?: Date
   items: Array<{ qty: number; receivedQty: number; returnedQty: number; unitCost: number; taxRate: number; total: number }>
 }) {
   return {
@@ -44,7 +46,29 @@ function applyAction(order: {
       if (order.status === 'cancelled') return { error: 'Order is already cancelled' }
       return { status: 'cancelled' }
     },
+    add_to_inventory: () => {
+      if (order.status !== 'received') {
+        return { error: 'Only received orders can be posted to inventory' }
+      }
+      if (order.inventoryPostedAt) {
+        return { error: 'This purchase order has already been posted to inventory' }
+      }
+      return {}
+    },
   }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function generateSku(name: string, index: number) {
+  const base = name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '')
+    .slice(0, 6) || 'ITEM'
+  const suffix = String(Date.now() + index).slice(-6)
+  return `${base}-${suffix}`
 }
 
 export async function GET(
@@ -93,11 +117,75 @@ export async function PATCH(
   }
 
   if (parsed.data.action) {
+    if (parsed.data.action === 'add_to_inventory') {
+      const inventoryDenied = await requireFeature(ctx, 'inventory')
+      if (inventoryDenied) return inventoryDenied
+    }
+
     const result = applyAction(existing)[parsed.data.action]()
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
     Object.assign(updates, result)
+
+    if (parsed.data.action === 'add_to_inventory') {
+      const itemSummaries = await Promise.all(
+        existing.items.map(async (item, index) => {
+          const qtyToAdd = Math.max(0, Number(item.receivedQty || item.qty || 0))
+          if (qtyToAdd <= 0) {
+            return { name: item.name, sku: null, qtyAdded: 0 }
+          }
+
+          let product = null
+
+          if (item.productId) {
+            product = await Product.findOneAndUpdate(
+              { _id: item.productId, tenantId: ctx.tenantId, active: true },
+              {
+                $inc: { stockQty: qtyToAdd },
+                $set: { cost: item.unitCost, taxRate: item.taxRate },
+              },
+              { new: true }
+            )
+          }
+
+          if (!product) {
+            product = await Product.findOneAndUpdate(
+              {
+                tenantId: ctx.tenantId,
+                active: true,
+                name: { $regex: `^${escapeRegex(item.name)}$`, $options: 'i' },
+              },
+              {
+                $inc: { stockQty: qtyToAdd },
+                $set: { cost: item.unitCost, taxRate: item.taxRate },
+              },
+              { new: true }
+            )
+          }
+
+          if (!product) {
+            product = await Product.create({
+              tenantId: ctx.tenantId,
+              name: item.name,
+              sku: generateSku(item.name, index),
+              description: `Auto-created from ${existing.poNo}`,
+              price: Number(item.unitCost || 0),
+              cost: Number(item.unitCost || 0),
+              category: 'Purchased',
+              stockQty: qtyToAdd,
+              taxRate: Number(item.taxRate || 0),
+              active: true,
+            })
+          }
+
+          return { name: item.name, sku: product.sku, qtyAdded: qtyToAdd }
+        })
+      )
+
+      updates.inventoryPostedAt = new Date()
+      updates.inventoryPostSummary = itemSummaries
+    }
   }
 
   const purchaseOrder = await PurchaseOrder.findOneAndUpdate(

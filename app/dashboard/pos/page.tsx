@@ -78,7 +78,7 @@ export default function POSPage() {
   const productsUrl = searchTerm
     ? `/api/products?limit=500&search=${encodeURIComponent(searchTerm)}`
     : '/api/products?limit=100'
-  const { data, isLoading } = useSWR(productsUrl, fetcher)
+  const { data, isLoading, mutate: mutateProducts } = useSWR(productsUrl, fetcher)
   const { data: customersResponse, mutate: mutateCustomers } = useSWR('/api/customers?limit=100', fetcher)
   const allProducts = (data?.data ?? []).filter((p: ProductData) => p.stockQty > 0)
   const customers: CustomerData[] = Array.isArray(customersResponse?.data) ? customersResponse.data : []
@@ -173,6 +173,7 @@ export default function POSPage() {
     setCart([])
     setSelectedCustomerId('')
     setCustomerSearch('')
+    void mutateProducts()
   }
 
   function openPaymentModal() {
@@ -186,6 +187,7 @@ export default function POSPage() {
 
   async function createInvoice() {
     const items = cart.map((i) => ({
+      productId: i._id,
       name: i.name,
       qty: i.qty,
       price: i.price,

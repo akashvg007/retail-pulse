@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Invoice } from '@/models/Invoice'
 import { Payment } from '@/models/Payment'
+import { deductInventoryForInvoiceSale } from '@/lib/inventory-sale'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -32,6 +33,16 @@ export async function POST(req: NextRequest) {
   await connectDB()
   const invoice = await Invoice.findOne({ _id: invoiceId, tenantId: ctx.tenantId }).lean()
   if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+
+  try {
+    await deductInventoryForInvoiceSale({
+      invoiceId,
+      tenantId: String(ctx.tenantId),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to update inventory for this sale'
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
 
   const payment = await Payment.create({
     tenantId: ctx.tenantId,

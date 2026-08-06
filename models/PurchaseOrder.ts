@@ -51,6 +51,12 @@ export interface IPurchaseOrder extends Document {
     extractedAt: Date
     warnings: string[]
   }
+  inventoryPostedAt?: Date
+  inventoryPostSummary?: Array<{
+    name: string
+    sku: string | null
+    qtyAdded: number
+  }>
   createdAt: Date
   updatedAt: Date
 }
@@ -107,6 +113,18 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
       confidence: Number,
       extractedAt: Date,
       warnings: { type: [String], default: [] },
+    },
+    inventoryPostedAt: Date,
+    inventoryPostSummary: {
+      type: [
+        {
+          _id: false,
+          name: String,
+          sku: String,
+          qtyAdded: Number,
+        },
+      ],
+      default: [],
     },
   },
   { timestamps: true }

@@ -3,6 +3,23 @@ import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Customer } from '@/models/Customer'
 import { Invoice } from '@/models/Invoice'
+import { deductInventoryForInvoiceSale } from '@/lib/inventory-sale'
+
+function withBusinessName<T extends { tenantId?: unknown }>(invoice: T) {
+  const tenantName =
+    invoice &&
+    typeof invoice.tenantId === 'object' &&
+    invoice.tenantId !== null &&
+    'name' in invoice.tenantId &&
+    typeof (invoice.tenantId as { name?: unknown }).name === 'string'
+      ? (invoice.tenantId as { name: string }).name
+      : undefined
+
+  return {
+    ...invoice,
+    businessName: tenantName,
+  }
+}
 
 export async function GET(
   _req: NextRequest,
@@ -17,9 +34,10 @@ export async function GET(
   const { id } = await params
   const invoice = await Invoice.findOne({ _id: id, tenantId: ctx.tenantId })
     .populate('customerId', 'name email phone gstNumber')
+    .populate('tenantId', 'name')
     .lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ data: invoice })
+  return NextResponse.json({ data: withBusinessName(invoice) })
 }
 
 export async function PATCH(
@@ -34,6 +52,9 @@ export async function PATCH(
   const body = await req.json()
   await connectDB()
   const { id } = await params
+
+  const existingInvoice = await Invoice.findOne({ _id: id, tenantId: ctx.tenantId }).lean()
+  if (!existingInvoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const update: Record<string, unknown> = { ...body }
   if (Object.prototype.hasOwnProperty.call(body, 'customerId')) {
@@ -54,13 +75,35 @@ export async function PATCH(
     }
   }
 
+  const nextStatus = typeof update.status === 'string' ? update.status : undefined
+  const movedToSoldStatus =
+    (nextStatus === 'sent' || nextStatus === 'paid') &&
+    existingInvoice.status !== 'sent' &&
+    existingInvoice.status !== 'paid'
+
+  if (movedToSoldStatus) {
+    try {
+      await deductInventoryForInvoiceSale({
+        invoiceId: id,
+        tenantId: String(ctx.tenantId),
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to update inventory for this sale'
+      return NextResponse.json({ error: message }, { status: 400 })
+    }
+  }
+
   const invoice = await Invoice.findOneAndUpdate(
     { _id: id, tenantId: ctx.tenantId },
     update,
     { new: true }
-  ).lean()
+  )
+    .populate('customerId', 'name email phone gstNumber')
+    .populate('tenantId', 'name')
+    .lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json({ data: invoice })
+
+  return NextResponse.json({ data: withBusinessName(invoice) })
 }
 
 export async function DELETE(

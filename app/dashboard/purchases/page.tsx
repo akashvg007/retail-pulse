@@ -15,7 +15,7 @@ import { extractBillDataFromImage } from '@/lib/ocr/client'
 import type { OcrExtractedData } from '@/lib/ocr/types'
 import { OCR_AUTOFILL_CONFIDENCE_THRESHOLD } from '@/lib/ocr/types'
 import { useFeature } from '@/contexts/FeatureContext'
-import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle } from 'lucide-react'
+import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle, Eye, Boxes } from 'lucide-react'
 
 type PurchaseStatus = 'draft' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled'
 
@@ -45,7 +45,8 @@ interface PurchaseRow {
   status: PurchaseStatus
   createdAt: string
   expectedDeliveryDate?: string
-  items: Array<{ name: string; qty: number }>
+  inventoryPostedAt?: string
+  items: Array<{ name: string; qty: number; unitCost?: number; taxRate?: number; total?: number }>
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -71,6 +72,10 @@ export default function PurchasesPage() {
   const [ocrFileName, setOcrFileName] = useState<string | null>(null)
   const [ocrData, setOcrData] = useState<OcrExtractedData | null>(null)
   const [creatingSupplierDraft, setCreatingSupplierDraft] = useState(false)
+  const [viewOpen, setViewOpen] = useState(false)
+  const [viewLoading, setViewLoading] = useState(false)
+  const [viewError, setViewError] = useState<string | null>(null)
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRow | null>(null)
 
   const purchasesQuery = useMemo(() => {
     const params = new URLSearchParams({ limit: '10', page: String(page) })
@@ -306,6 +311,49 @@ export default function PurchasesPage() {
     }
   }
 
+  async function openView(id: string) {
+    setViewOpen(true)
+    setViewLoading(true)
+    setViewError(null)
+    try {
+      const response = await fetch(`/api/purchases/${id}`)
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to load purchase order')
+      }
+      setSelectedPurchase(result?.data as PurchaseRow)
+    } catch (loadError) {
+      setSelectedPurchase(null)
+      setViewError(loadError instanceof Error ? loadError.message : 'Unable to load purchase order')
+    } finally {
+      setViewLoading(false)
+    }
+  }
+
+  async function runInventoryPost(id: string) {
+    setActioningId(id)
+    setError(null)
+    try {
+      const response = await fetch(`/api/purchases/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_to_inventory' }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to add products to inventory')
+      }
+      await mutate(purchasesQuery)
+      if (selectedPurchase?._id === id) {
+        setSelectedPurchase(result?.data as PurchaseRow)
+      }
+    } catch (inventoryError) {
+      setError(inventoryError instanceof Error ? inventoryError.message : 'Unable to add products to inventory')
+    } finally {
+      setActioningId(null)
+    }
+  }
+
   function onSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setPage(1)
@@ -422,7 +470,15 @@ export default function PurchasesPage() {
               key: '_id',
               from: 'purchase',
               label: '',
-              render: (id, row) => <RowActions row={row} onAction={runAction} busyId={actioningId} />,
+              render: (id, row) => (
+                <RowActions
+                  row={row}
+                  onAction={runAction}
+                  onView={openView}
+                  onInventoryPost={runInventoryPost}
+                  busyId={actioningId}
+                />
+              ),
             },
           ]}
           data={purchases}
@@ -608,6 +664,74 @@ export default function PurchasesPage() {
           />
         </div>
       </Modal>
+
+      <Modal
+        open={viewOpen}
+        onClose={() => {
+          setViewOpen(false)
+          setSelectedPurchase(null)
+          setViewError(null)
+        }}
+        title={selectedPurchase ? `Purchase order ${selectedPurchase.poNo}` : 'Purchase order'}
+        className="max-w-3xl"
+      >
+        {viewLoading ? <p className="text-sm text-gray-600">Loading purchase order...</p> : null}
+        {viewError ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{viewError}</div>
+        ) : null}
+        {selectedPurchase ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-3 text-sm sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-gray-500">Supplier</p>
+                <p className="font-medium text-gray-900">{selectedPurchase.supplierSnapshot?.name || '—'}</p>
+                <p className="text-xs text-gray-500">{selectedPurchase.supplierSnapshot?.code || ''}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Status</p>
+                <Badge variant={purchaseStatusBadge(selectedPurchase.status)}>{formatStatus(selectedPurchase.status)}</Badge>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Total</p>
+                <p className="font-semibold text-gray-900">{formatCurrency(selectedPurchase.total)}</p>
+                <p className="text-xs text-gray-500">Created {formatDate(selectedPurchase.createdAt)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-gray-700">Items</p>
+              <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                  <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2">Item</th>
+                      <th className="px-3 py-2">Qty</th>
+                      <th className="px-3 py-2">Unit cost</th>
+                      <th className="px-3 py-2">Tax %</th>
+                      <th className="px-3 py-2 text-right">Line total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {selectedPurchase.items.map((item, index) => (
+                      <tr key={`view-item-${index}`}>
+                        <td className="px-3 py-2 text-gray-800">{item.name}</td>
+                        <td className="px-3 py-2 text-gray-700">{item.qty}</td>
+                        <td className="px-3 py-2 text-gray-700">{formatCurrency(item.unitCost ?? 0)}</td>
+                        <td className="px-3 py-2 text-gray-700">{item.taxRate ?? 0}%</td>
+                        <td className="px-3 py-2 text-right font-medium text-gray-900">{formatCurrency(item.total ?? 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
+              Inventory sync: {selectedPurchase.inventoryPostedAt ? `Posted on ${formatDate(selectedPurchase.inventoryPostedAt)}` : 'Not posted yet'}
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </FeatureGate>
   )
 }
@@ -625,15 +749,27 @@ function StatCard({ label, value, helper }: { label: string; value: string; help
 function RowActions({
   row,
   onAction,
+  onView,
+  onInventoryPost,
   busyId,
 }: {
   row: PurchaseRow
   onAction: (id: string, action: 'approve' | 'send' | 'receive' | 'cancel') => Promise<void>
+  onView: (id: string) => Promise<void>
+  onInventoryPost: (id: string) => Promise<void>
   busyId: string | null
 }) {
   const disabled = busyId === row._id
   return (
     <div className="flex gap-2">
+      <button
+        disabled={disabled}
+        onClick={() => onView(row._id)}
+        className="text-gray-400 hover:text-slate-700 disabled:opacity-40"
+        title="View purchase order"
+      >
+        <Eye size={14} />
+      </button>
       {row.status === 'draft' ? (
         <button disabled={disabled} onClick={() => onAction(row._id, 'approve')} className="text-gray-400 hover:text-green-600 disabled:opacity-40" title="Approve">
           <CheckCircle2 size={14} />
@@ -652,6 +788,16 @@ function RowActions({
       {!['received', 'cancelled'].includes(row.status) ? (
         <button disabled={disabled} onClick={() => onAction(row._id, 'cancel')} className="text-gray-400 hover:text-red-600 disabled:opacity-40" title="Cancel">
           <XCircle size={14} />
+        </button>
+      ) : null}
+      {row.status === 'received' ? (
+        <button
+          disabled={disabled || Boolean(row.inventoryPostedAt)}
+          onClick={() => onInventoryPost(row._id)}
+          className="text-gray-400 hover:text-indigo-700 disabled:opacity-40"
+          title={row.inventoryPostedAt ? 'Already added to inventory' : 'Add purchase products to inventory'}
+        >
+          <Boxes size={14} />
         </button>
       ) : null}
     </div>

@@ -25,6 +25,7 @@ export interface IInvoice extends Document {
   total: number
   status: InvoiceStatus
   razorpayOrderId?: string
+  inventoryDeductedAt?: Date
   dueDate?: Date
   notes?: string
   createdAt: Date
@@ -66,6 +67,7 @@ const InvoiceSchema = new Schema<IInvoice>(
       default: 'draft',
     },
     razorpayOrderId: String,
+    inventoryDeductedAt: Date,
     dueDate: Date,
     notes: String,
   },
