@@ -8,7 +8,13 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Table } from '@/components/ui/Table'
 import ModalFooter from '@/components/ModalFooter'
+import BillImageInput from '@/components/purchases/BillImageInput'
+import OcrReviewPanel from '@/components/purchases/OcrReviewPanel'
 import { formatCurrency, formatDate } from '@/lib/utils'
+import { extractBillDataFromImage } from '@/lib/ocr/client'
+import type { OcrExtractedData } from '@/lib/ocr/types'
+import { OCR_AUTOFILL_CONFIDENCE_THRESHOLD } from '@/lib/ocr/types'
+import { useFeature } from '@/contexts/FeatureContext'
 import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle } from 'lucide-react'
 
 type PurchaseStatus = 'draft' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled'
@@ -24,6 +30,8 @@ interface SupplierOption {
   _id: string
   name: string
   code: string
+  phone?: string
+  email?: string
 }
 
 interface PurchaseRow {
@@ -43,6 +51,7 @@ interface PurchaseRow {
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export default function PurchasesPage() {
+  const billOcrEnabled = useFeature('purchase_bill_ocr')
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
@@ -55,6 +64,13 @@ export default function PurchasesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [actioningId, setActioningId] = useState<string | null>(null)
+  const [ocrBusy, setOcrBusy] = useState(false)
+  const [ocrProgress, setOcrProgress] = useState(0)
+  const [ocrStage, setOcrStage] = useState('Preparing OCR engine')
+  const [ocrError, setOcrError] = useState<string | null>(null)
+  const [ocrFileName, setOcrFileName] = useState<string | null>(null)
+  const [ocrData, setOcrData] = useState<OcrExtractedData | null>(null)
+  const [creatingSupplierDraft, setCreatingSupplierDraft] = useState(false)
 
   const purchasesQuery = useMemo(() => {
     const params = new URLSearchParams({ limit: '10', page: String(page) })
@@ -90,6 +106,13 @@ export default function PurchasesPage() {
     setExpectedDeliveryDate('')
     setNotes('')
     setItems([{ name: '', qty: 1, unitCost: 0, taxRate: 0 }])
+    setOcrBusy(false)
+    setOcrProgress(0)
+    setOcrStage('Preparing OCR engine')
+    setOcrError(null)
+    setOcrFileName(null)
+    setOcrData(null)
+    setCreatingSupplierDraft(false)
     setError(null)
   }
 
@@ -111,6 +134,111 @@ export default function PurchasesPage() {
     setItems((current) => [...current, { name: '', qty: 1, unitCost: 0, taxRate: 0 }])
   }
 
+  function applyOcrToForm(data: OcrExtractedData) {
+    if (data.billDate) {
+      setExpectedDeliveryDate(data.billDate)
+    }
+
+    if (data.billNumber) {
+      setNotes((previous) => {
+        const prefix = previous?.trim() ? `${previous.trim()}\n` : ''
+        return `${prefix}Bill: ${data.billNumber}`
+      })
+    }
+
+    if (data.items.length > 0) {
+      setItems(data.items.map((item) => ({
+        name: item.name,
+        qty: item.qty,
+        unitCost: item.unitCost,
+        taxRate: item.taxRate,
+      })))
+    }
+
+    if (data.supplier.name) {
+      const normalizedName = data.supplier.name.toLowerCase().trim()
+      const normalizedPhone = data.supplier.phone?.replace(/\D/g, '').slice(-10)
+      const normalizedEmail = data.supplier.email?.toLowerCase().trim()
+
+      const matchedSupplier = suppliers.find((supplier) => {
+        const nameMatch = supplier.name.toLowerCase().trim() === normalizedName
+        if (nameMatch) return true
+        const supplierPhone = supplier.phone?.replace(/\D/g, '').slice(-10)
+        const supplierEmail = supplier.email?.toLowerCase().trim()
+        return supplierPhone === normalizedPhone || supplierEmail === normalizedEmail
+      })
+      if (matchedSupplier) setSupplierId(matchedSupplier._id)
+    }
+  }
+
+  async function handleBillSelection(file: File) {
+    if (!file.type.startsWith('image/')) {
+      setOcrError('Only image files are supported for bill OCR.')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setOcrError('Please upload a file smaller than 10 MB.')
+      return
+    }
+
+    setOcrBusy(true)
+    setOcrProgress(0)
+    setOcrStage('Preparing OCR engine')
+    setOcrError(null)
+    setOcrFileName(file.name)
+    try {
+      const extracted = await extractBillDataFromImage(file, ({ progress, status }) => {
+        setOcrProgress(progress)
+        if (status) setOcrStage(status)
+      })
+      setOcrProgress(1)
+      setOcrStage('Extraction complete')
+      setOcrData(extracted)
+    } catch {
+      setOcrData(null)
+      setOcrError('Could not extract bill details. Please retry or continue with manual entry.')
+    } finally {
+      setOcrBusy(false)
+    }
+  }
+
+  async function createSupplierDraftFromOcr() {
+    if (!ocrData?.supplier?.name) {
+      setOcrError('Supplier name is required to create a draft supplier.')
+      return
+    }
+
+    setCreatingSupplierDraft(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/purchases/ocr/supplier-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: ocrData.supplier.name,
+          phone: ocrData.supplier.phone,
+          email: ocrData.supplier.email,
+          gstNumber: ocrData.supplier.gstNumber,
+        }),
+      })
+
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to create supplier draft')
+      }
+
+      const newSupplier = result?.data as SupplierOption | undefined
+      if (newSupplier?._id) {
+        setSupplierId(newSupplier._id)
+        await mutate('/api/suppliers?limit=100')
+      }
+    } catch (supplierError) {
+      setError(supplierError instanceof Error ? supplierError.message : 'Unable to create supplier draft')
+    } finally {
+      setCreatingSupplierDraft(false)
+    }
+  }
+
   function removeItem(index: number) {
     setItems((current) => current.length === 1 ? current : current.filter((_, itemIndex) => itemIndex !== index))
   }
@@ -123,6 +251,14 @@ export default function PurchasesPage() {
         supplierId,
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes: notes || undefined,
+        ocrMeta: ocrData
+          ? {
+            confidence: Number(ocrData.confidence.toFixed(2)),
+            extractedAt: new Date().toISOString(),
+            source: 'client-ocr',
+            warnings: ocrData.warnings.map((warning) => warning.code),
+          }
+          : undefined,
         items: items.map((item) => ({
           ...item,
           total: item.qty * item.unitCost + (item.qty * item.unitCost * item.taxRate) / 100,
@@ -320,6 +456,58 @@ export default function PurchasesPage() {
 
       <Modal open={open} onClose={() => setOpen(false)} title="Create purchase order">
         <div className="space-y-4">
+          {billOcrEnabled ? (
+            <BillImageInput
+              busy={ocrBusy}
+              fileName={ocrFileName}
+              error={ocrError}
+              onFileSelected={(file, source) => {
+                void source
+                void handleBillSelection(file)
+              }}
+              onClear={() => {
+                setOcrData(null)
+                setOcrFileName(null)
+                setOcrError(null)
+              }}
+            />
+          ) : null}
+
+          {billOcrEnabled && ocrBusy ? (
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-xs text-indigo-800">
+              <div className="mb-2 flex items-center justify-between">
+                <span>Extracting bill data...</span>
+                <span>{Math.round(ocrProgress * 100)}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-indigo-100">
+                <div
+                  className="h-full rounded-full bg-indigo-600 transition-all duration-200"
+                  style={{ width: `${Math.max(4, Math.round(ocrProgress * 100))}%` }}
+                />
+              </div>
+              <p className="mt-2 text-[11px] text-indigo-700 capitalize">{ocrStage.replace(/_/g, ' ')}</p>
+            </div>
+          ) : null}
+
+          {billOcrEnabled && ocrData ? (
+            <OcrReviewPanel
+              data={ocrData}
+              creatingSupplierDraft={creatingSupplierDraft}
+              onApply={() => {
+                if (ocrData.confidence < OCR_AUTOFILL_CONFIDENCE_THRESHOLD) return
+                applyOcrToForm(ocrData)
+              }}
+              onCreateSupplierDraft={() => {
+                void createSupplierDraftFromOcr()
+              }}
+              onDismiss={() => {
+                setOcrData(null)
+                setOcrFileName(null)
+                setOcrError(null)
+              }}
+            />
+          ) : null}
+
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">Supplier</label>
             <select

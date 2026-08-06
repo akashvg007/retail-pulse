@@ -7,6 +7,7 @@ export type FeatureKey =
   | 'payments'
   | 'supplier_management'
   | 'purchase_management'
+  | 'purchase_bill_ocr'
   | 'staff_management'
   | 'subscriptions'
   | 'reports'
@@ -22,6 +23,7 @@ export const ALL_FEATURE_KEYS: FeatureKey[] = [
   'payments',
   'supplier_management',
   'purchase_management',
+  'purchase_bill_ocr',
   'staff_management',
   'subscriptions',
   'reports',
@@ -43,6 +45,10 @@ export const FEATURE_META: Record<FeatureKey, { name: string; description: strin
   purchase_management: {
     name: 'Purchase Management',
     description: 'Create purchase orders, receive stock and track supplier payables',
+  },
+  purchase_bill_ocr: {
+    name: 'Purchase Bill OCR',
+    description: 'Capture or upload purchase bills and auto-fill purchase order fields',
   },
   staff_management: { name: 'Staff Management', description: 'Manage staff accounts and permissions' },
   subscriptions: { name: 'Subscriptions', description: 'Recurring billing and subscription management' },

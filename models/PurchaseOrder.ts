@@ -45,6 +45,12 @@ export interface IPurchaseOrder extends Document {
   sentAt?: Date
   receivedAt?: Date
   notes?: string
+  ocrMeta?: {
+    source: string
+    confidence: number
+    extractedAt: Date
+    warnings: string[]
+  }
   createdAt: Date
   updatedAt: Date
 }
@@ -96,6 +102,12 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     sentAt: Date,
     receivedAt: Date,
     notes: String,
+    ocrMeta: {
+      source: String,
+      confidence: Number,
+      extractedAt: Date,
+      warnings: { type: [String], default: [] },
+    },
   },
   { timestamps: true }
 )

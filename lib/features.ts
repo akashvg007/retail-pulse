@@ -36,6 +36,11 @@ export async function hasFeature(
     if (!supplierEnabled) return false
   }
 
+  if (key === 'purchase_bill_ocr') {
+    const purchaseEnabled = await hasFeature(tenantId, 'purchase_management', opts)
+    if (!purchaseEnabled) return false
+  }
+
   // Layer 3: staff-level (only applies to staff role)
   if (opts?.role === 'staff' && opts?.userId) {
     const staffFeature = await StaffFeature.findOne({
@@ -65,6 +70,7 @@ export async function getTenantFeatures(tenantId: string): Promise<TenantFeature
     result[key] = overrideMap.has(key) ? overrideMap.get(key)! : (flag?.globalEnabled ?? false)
   }
   result.purchase_management = result.purchase_management && result.supplier_management
+  result.purchase_bill_ocr = result.purchase_bill_ocr && result.purchase_management
   return result
 }
 
@@ -88,6 +94,7 @@ export async function getStaffFeatures(
     result[key] = tenantFeatures[key] === true && (grantMap.get(key) ?? false)
   }
   result.purchase_management = result.purchase_management && result.supplier_management
+  result.purchase_bill_ocr = result.purchase_bill_ocr && result.purchase_management
   return result
 }
 

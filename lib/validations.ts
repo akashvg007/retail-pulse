@@ -78,6 +78,12 @@ export const purchaseOrderSchema = z.object({
   items: z.array(purchaseOrderItemSchema).min(1, 'At least one purchase item is required'),
   expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),
+  ocrMeta: z.object({
+    source: z.string().min(1),
+    confidence: z.number().min(0).max(1),
+    extractedAt: z.string().datetime(),
+    warnings: z.array(z.string()).default([]),
+  }).optional(),
 })
 
 export const staffSchema = z.object({

@@ -1,12 +1,10 @@
 'use client'
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import Link from 'next/link'
-import { auth } from '@/lib/auth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Zap } from 'lucide-react'
@@ -39,7 +37,7 @@ export default function LoginPage() {
       setServerError('Invalid email or password')
       return
     }
-    const session = await auth()
+    const session = await getSession()
     if (session?.user?.role === 'staff') {
       router.push('/dashboard/pos')
     }

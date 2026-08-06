@@ -112,6 +112,14 @@ export async function POST(req: NextRequest) {
       ? new Date(parsed.data.expectedDeliveryDate)
       : undefined,
     notes: parsed.data.notes,
+    ocrMeta: parsed.data.ocrMeta
+      ? {
+        source: parsed.data.ocrMeta.source,
+        confidence: parsed.data.ocrMeta.confidence,
+        extractedAt: new Date(parsed.data.ocrMeta.extractedAt),
+        warnings: parsed.data.ocrMeta.warnings,
+      }
+      : undefined,
   })
 
   return NextResponse.json({ data: purchaseOrder }, { status: 201 })
