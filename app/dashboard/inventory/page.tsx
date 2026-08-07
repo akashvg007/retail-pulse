@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useRef, useState } from 'react'
-import useSWR, { mutate } from 'swr'
+import useSWR from 'swr'
 import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { productSchema } from '@/lib/validations'
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
-import { Download, FileSpreadsheet, Grid3X3, List, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { Download, FileSpreadsheet, Grid3X3, List, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import ModalFooter from '@/components/ModalFooter'
 import { read, utils, writeFile } from 'xlsx'
@@ -29,8 +29,13 @@ export default function InventoryPage() {
   const [importMessage, setImportMessage] = useState<string | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { data, isLoading } = useSWR(`/api/products?limit=10&page=${page}`, fetcher)
+  const searchTerm = searchQuery.trim()
+  const productsUrl = searchTerm
+    ? `/api/products?limit=10&page=${page}&search=${encodeURIComponent(searchTerm)}`
+    : `/api/products?limit=10&page=${page}`
+  const { data, isLoading, mutate: mutateProducts } = useSWR(productsUrl, fetcher)
   const products = (data?.data ?? []) as ProductForm[]
   const total = Number(data?.total ?? 0)
   const totalPages = Math.max(1, Math.ceil(total / 10))
@@ -72,14 +77,24 @@ export default function InventoryPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
-    mutate(`/api/products?limit=10&page=${page}`)
+    mutateProducts()
     setOpen(false)
   }
 
   async function deleteProduct(id: string) {
     if (!confirm('Delete this product?')) return
     await fetch(`/api/products/${id}`, { method: 'DELETE' })
-    mutate(`/api/products?limit=10&page=${page}`)
+    mutateProducts()
+  }
+
+  function handleSearchChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setSearchQuery(event.target.value)
+    setPage(1)
+  }
+
+  function clearSearch() {
+    setSearchQuery('')
+    setPage(1)
   }
 
   function ProductActions({ product }: { product: ProductForm }) {
@@ -152,7 +167,7 @@ export default function InventoryPage() {
       }
 
       await waitForProgress(100)
-      mutate(`/api/products?limit=10&page=${page}`)
+      mutateProducts()
       setImportMessage(`Imported ${payload.count ?? productsToCreate.length} products successfully.`)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (error) {
@@ -198,6 +213,27 @@ export default function InventoryPage() {
               <Plus size={14} /> Add product
             </Button>
           </div>
+        </div>
+
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search products by name, SKU, or category..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="w-full rounded-lg border border-gray-300 py-2.5 pl-9 pr-8 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 hover:text-gray-600"
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          ) : null}
         </div>
 
         <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/70 p-4 text-sm text-indigo-900">

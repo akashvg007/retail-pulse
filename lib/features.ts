@@ -114,7 +114,7 @@ export async function setStaffFeatures(
       const enabled = features[key] === true && tenantFeatures[key] === true
       return StaffFeature.findOneAndUpdate(
         { tenantId, userId, featureKey: key },
-        { enabled, ...(enabled ? { grantedAt: new Date(), grantedBy } : {}) },
+        { $set: { enabled, ...(enabled ? { grantedAt: new Date(), grantedBy } : {}) } },
         { upsert: true }
       )
     })
@@ -130,7 +130,7 @@ export async function setTenantFeature(
   await connectDB()
   await TenantFeature.findOneAndUpdate(
     { tenantId, featureKey },
-    { enabled, enabledAt: enabled ? new Date() : undefined, enabledBy: enabled ? enabledBy : undefined },
+    { $set: { enabled, enabledAt: enabled ? new Date() : undefined, enabledBy: enabled ? enabledBy : undefined } },
     { upsert: true, new: true }
   )
 }
