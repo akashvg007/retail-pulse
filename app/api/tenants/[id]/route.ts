@@ -8,6 +8,22 @@ const updateTenantSchema = z.object({
   name: z.string().min(2).optional(),
   plan: z.enum(['basic', 'pro', 'enterprise']).optional(),
   active: z.boolean().optional(),
+  settings: z.object({
+    gstNumber: z.string().optional(),
+    address: z.string().optional(),
+    taxRate: z.number().optional(),
+    currency: z.string().optional(),
+    branding: z.object({
+      businessLogo: z.string().optional(),
+      primaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      secondaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      tagline: z.string().optional(),
+      paymentTerms: z.string().optional(),
+      invoiceFooter: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().email().optional(),
+    }).optional(),
+  }).optional(),
 })
 
 export async function GET(

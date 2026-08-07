@@ -16,6 +16,29 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(searchParams.get('page') ?? 1))
   const limit = Math.min(500, Number(searchParams.get('limit') ?? 20))
   const search = searchParams.get('search') ?? ''
+  const sku = searchParams.get('sku')?.trim()
+
+  if (sku) {
+    const exactMatch = await Product.findOne({ tenantId: ctx.tenantId, active: true, sku }).lean()
+
+    if (exactMatch) {
+      return NextResponse.json({ data: [exactMatch], total: 1, page: 1, limit: 1 })
+    }
+
+    // Fallback for case mismatches in older data.
+    const caseInsensitiveMatch = await Product.findOne({
+      tenantId: ctx.tenantId,
+      active: true,
+      sku: { $regex: `^${sku.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' },
+    }).lean()
+
+    return NextResponse.json({
+      data: caseInsensitiveMatch ? [caseInsensitiveMatch] : [],
+      total: caseInsensitiveMatch ? 1 : 0,
+      page: 1,
+      limit: 1,
+    })
+  }
 
   const filter: Record<string, unknown> = { tenantId: ctx.tenantId, active: true }
   if (search) {

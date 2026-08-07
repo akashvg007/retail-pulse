@@ -14,6 +14,22 @@ const createTenantSchema = z.object({
   adminName: z.string().min(2),
   adminEmail: z.string().email(),
   adminPassword: z.string().min(8),
+  settings: z.object({
+    gstNumber: z.string().optional(),
+    address: z.string().optional(),
+    taxRate: z.number().default(18),
+    currency: z.string().default('INR'),
+    branding: z.object({
+      businessLogo: z.string().optional(), // base64 or URL
+      primaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      secondaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+      tagline: z.string().optional(),
+      paymentTerms: z.string().optional(),
+      invoiceFooter: z.string().optional(),
+      phone: z.string().optional(),
+      email: z.string().email().optional(),
+    }).optional(),
+  }).optional(),
 })
 
 export async function GET() {
@@ -35,7 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { name, plan, adminName, adminEmail, adminPassword } = parsed.data
+  const { name, plan, adminName, adminEmail, adminPassword, settings } = parsed.data
 
   await connectDB()
 
@@ -50,7 +66,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
   }
 
-  const tenant = await Tenant.create({ slug, name, plan })
+  const tenant = await Tenant.create({
+    slug,
+    name,
+    plan,
+    settings: settings || {
+      taxRate: 18,
+      currency: 'INR',
+    },
+  })
+
   const passwordHash = await bcrypt.hash(adminPassword, 12)
   await User.create({
     tenantId: tenant._id,

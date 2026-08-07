@@ -1,5 +1,16 @@
 import mongoose, { Schema, Document, Model } from 'mongoose'
 
+export interface IBrandingSettings {
+  businessLogo?: string // base64 or S3 URL
+  primaryColor?: string // hex color code
+  secondaryColor?: string // hex color code
+  tagline?: string
+  paymentTerms?: string // e.g., "Net 30"
+  invoiceFooter?: string // custom footer text
+  phone?: string
+  email?: string
+}
+
 export interface ITenant extends Document {
   slug: string
   name: string
@@ -10,6 +21,7 @@ export interface ITenant extends Document {
     address?: string
     taxRate: number
     currency: string
+    branding?: IBrandingSettings
   }
   invoiceCounter: number
   purchaseOrderCounter: number
@@ -29,6 +41,16 @@ const TenantSchema = new Schema<ITenant>(
       address: String,
       taxRate: { type: Number, default: 18 },
       currency: { type: String, default: 'INR' },
+      branding: {
+        businessLogo: String,
+        primaryColor: String,
+        secondaryColor: String,
+        tagline: String,
+        paymentTerms: String,
+        invoiceFooter: String,
+        phone: String,
+        email: String,
+      },
     },
     invoiceCounter: { type: Number, default: 0 },
     purchaseOrderCounter: { type: Number, default: 0 },

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
 import { FeatureGate } from '@/components/FeatureGate'
 import { ShoppingCart, Search, X } from 'lucide-react'
@@ -56,6 +56,7 @@ function formatDate(value: string) {
 }
 
 export default function POSPage() {
+  const pageRef = useRef<HTMLDivElement>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
   const [drawerVisible, setDrawerVisible] = useState(false)
@@ -73,14 +74,20 @@ export default function POSPage() {
   const [creatingCustomer, setCreatingCustomer] = useState(false)
   const [customerForm, setCustomerForm] = useState<CustomerFormData>({ name: '', email: '', phone: '' })
   const [customerFormError, setCustomerFormError] = useState('')
+  const [scannerMessage, setScannerMessage] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const scannerBufferRef = useRef('')
+  const scannerClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scannerMessageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastScannerKeystrokeRef = useRef(0)
   const searchTerm = searchQuery.trim()
   const productsUrl = searchTerm
     ? `/api/products?limit=500&search=${encodeURIComponent(searchTerm)}`
     : '/api/products?limit=100'
   const { data, isLoading, mutate: mutateProducts } = useSWR(productsUrl, fetcher)
   const { data: customersResponse, mutate: mutateCustomers } = useSWR('/api/customers?limit=100', fetcher)
-  const allProducts = (data?.data ?? []).filter((p: ProductData) => p.stockQty > 0)
+  const allProductsRaw = useMemo<ProductData[]>(() => (Array.isArray(data?.data) ? data.data : []), [data])
+  const allProducts = allProductsRaw.filter((p: ProductData) => p.stockQty > 0)
   const customers: CustomerData[] = Array.isArray(customersResponse?.data) ? customersResponse.data : []
   const customerApiError = typeof customersResponse?.error === 'string' ? customersResponse.error : ''
   const selectedCustomer = customers.find((customer) => customer._id === selectedCustomerId)
@@ -100,7 +107,24 @@ export default function POSPage() {
     searchInputRef.current?.focus()
   }, [])
 
-  function addToCart(product: ProductData) {
+  useEffect(() => {
+    return () => {
+      if (scannerClearTimerRef.current) clearTimeout(scannerClearTimerRef.current)
+      if (scannerMessageTimerRef.current) clearTimeout(scannerMessageTimerRef.current)
+    }
+  }, [])
+
+  const showScannerMessage = useCallback((message: string) => {
+    setScannerMessage(message)
+    if (scannerMessageTimerRef.current) {
+      clearTimeout(scannerMessageTimerRef.current)
+    }
+    scannerMessageTimerRef.current = setTimeout(() => {
+      setScannerMessage('')
+    }, 1800)
+  }, [])
+
+  const addToCart = useCallback((product: ProductData) => {
     setCart((prev) => {
       const existing = prev.find((i) => i._id === product._id)
       if (existing) return prev.map((i) => i._id === product._id ? { ...i, qty: i.qty + 1 } : i)
@@ -108,24 +132,124 @@ export default function POSPage() {
     })
     setLastAddedId(product._id)
     setTimeout(() => setLastAddedId((prev) => (prev === product._id ? null : prev)), 400)
-  }
+  }, [])
 
-  // Handle barcode scan: auto-add if exactly one match, otherwise show in search
+  const handleBarcodeScan = useCallback(async (rawSku: string) => {
+    const scannedSku = rawSku.trim()
+    if (!scannedSku) return
+
+    const normalized = scannedSku.toLowerCase()
+    const localExact = allProductsRaw.find((product) => product.sku.toLowerCase() === normalized)
+
+    if (localExact) {
+      if (localExact.stockQty <= 0) {
+        showScannerMessage(`SKU ${localExact.sku} is out of stock`)
+        return
+      }
+      addToCart(localExact)
+      setSearchQuery('')
+      showScannerMessage(`Added ${localExact.name}`)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/products?sku=${encodeURIComponent(scannedSku)}&limit=1`, {
+        method: 'GET',
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        showScannerMessage(`Could not fetch SKU ${scannedSku}`)
+        return
+      }
+
+      const payload = (await response.json()) as { data?: ProductData[] }
+      const product = Array.isArray(payload.data) ? payload.data[0] : undefined
+
+      if (!product) {
+        showScannerMessage(`SKU ${scannedSku} not found`)
+        return
+      }
+
+      if (product.stockQty <= 0) {
+        showScannerMessage(`SKU ${product.sku} is out of stock`)
+        return
+      }
+
+      addToCart(product)
+      setSearchQuery('')
+      showScannerMessage(`Added ${product.name}`)
+      void mutateProducts()
+    } catch {
+      showScannerMessage(`Could not fetch SKU ${scannedSku}`)
+    }
+  }, [allProductsRaw, addToCart, mutateProducts, showScannerMessage])
+
+  useEffect(() => {
+    const page = pageRef.current
+    if (!page) return
+
+    function clearScannerBuffer() {
+      scannerBufferRef.current = ''
+      if (scannerClearTimerRef.current) {
+        clearTimeout(scannerClearTimerRef.current)
+      }
+      scannerClearTimerRef.current = null
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (customerOpen || paymentOpen) return
+      if (event.ctrlKey || event.altKey || event.metaKey) return
+
+      const now = Date.now()
+      const elapsed = now - lastScannerKeystrokeRef.current
+      lastScannerKeystrokeRef.current = now
+
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        const scanned = scannerBufferRef.current.trim()
+        clearScannerBuffer()
+
+        if (scanned.length >= 6) {
+          event.preventDefault()
+          void handleBarcodeScan(scanned)
+        }
+        return
+      }
+
+      if (event.key.length !== 1) return
+
+      const target = event.target as HTMLElement | null
+      const isEditable = Boolean(
+        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      )
+
+      // Only capture global scanner keys outside active text entry fields.
+      if (isEditable && target !== searchInputRef.current) return
+
+      if (elapsed > 120) {
+        scannerBufferRef.current = event.key
+      } else {
+        scannerBufferRef.current += event.key
+      }
+
+      if (scannerClearTimerRef.current) {
+        clearTimeout(scannerClearTimerRef.current)
+      }
+      scannerClearTimerRef.current = setTimeout(() => {
+        scannerBufferRef.current = ''
+      }, 140)
+    }
+
+    page.addEventListener('keydown', onKeyDown)
+    return () => {
+      page.removeEventListener('keydown', onKeyDown)
+    }
+  }, [customerOpen, paymentOpen, handleBarcodeScan])
+
+  // Handle typed search in POS catalog.
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const query = e.target.value
     setSearchQuery(query)
-
-    if (query.length > 0) {
-      const matches = allProducts.filter((p: ProductData) => {
-        const q = query.toLowerCase()
-        return p.sku.toLowerCase() === q || p.name.toLowerCase().includes(q)
-      })
-      // Auto-add if searching by SKU (exact match)
-      if (matches.length === 1 && allProducts.find((p: ProductData) => p.sku.toLowerCase() === query.toLowerCase())) {
-        addToCart(matches[0])
-        setSearchQuery('')
-      }
-    }
   }
 
   function openDrawer() {
@@ -403,7 +527,7 @@ export default function POSPage() {
 
   return (
     <FeatureGate feature="pos" fallback={<LockedPage />}>
-      <div className="flex h-full flex-col xl:flex-row">
+      <div ref={pageRef} className="flex h-full flex-col xl:flex-row">
         <div className="flex flex-1 flex-col">
           <div className="relative p-4 pb-0 sm:p-6">
             <Search className="absolute left-8 top-9 sm:top-2/4 -translate-y-1/2 text-gray-400" size={18} />
@@ -423,6 +547,7 @@ export default function POSPage() {
                 <X size={16} />
               </button>
             )}
+            {scannerMessage ? <p className="mt-2 text-xs text-indigo-600">{scannerMessage}</p> : null}
           </div>
           <ProductGrid
             products={products}

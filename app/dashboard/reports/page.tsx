@@ -13,7 +13,13 @@ const ReportsAnalytics = dynamicImport(() => import('@/components/reports/Report
 export default async function ReportsPage() {
   const session = await auth()
   const tenantId = session?.user?.tenantId
-  const reportData = tenantId ? await getDashboardReportsData(tenantId) : null
+  const reportData = tenantId
+    ? await getDashboardReportsData(tenantId, {
+        dateRange: 'thisMonth',
+        paymentMode: 'all',
+        cashierRole: 'all',
+      })
+    : null
 
   return (
     <FeatureGate feature="reports" fallback={<LockedPage />}>

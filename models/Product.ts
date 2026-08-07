@@ -33,6 +33,7 @@ const ProductSchema = new Schema<IProduct>(
 
 ProductSchema.index({ tenantId: 1, sku: 1 }, { unique: true })
 ProductSchema.index({ tenantId: 1, active: 1 })
+ProductSchema.index({ tenantId: 1, active: 1, sku: 1 })
 
 export const Product: Model<IProduct> =
   mongoose.models.Product ?? mongoose.model<IProduct>('Product', ProductSchema)
