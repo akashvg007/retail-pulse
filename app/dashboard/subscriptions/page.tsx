@@ -1,18 +1,35 @@
-'use client'
-import useSWR from 'swr'
+import { auth } from '@/lib/auth'
+import { connectDB } from '@/lib/db'
+import { Subscription } from '@/models/Subscription'
 import { Badge } from '@/components/ui/Badge'
 import { Table } from '@/components/ui/Table'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { formatDate } from '@/lib/utils'
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+interface SubscriptionRow {
+  _id: string
+  plan: string
+  status: string
+  startDate: string
+  endDate?: string | null
+  razorpaySubscriptionId?: string
+}
 
-export default function SubscriptionsPage() {
-  const { data, isLoading } = useSWR('/api/subscriptions', fetcher)
-  const subscriptions = data?.data ?? []
+export default async function SubscriptionsPage() {
+  const session = await auth()
+  const tenantId = session?.user?.tenantId
+
+  let subscriptions: SubscriptionRow[] = []
+  if (tenantId) {
+    await connectDB()
+    subscriptions = (await Subscription.find({ tenantId })
+      .sort({ createdAt: -1 })
+      .lean()) as unknown as SubscriptionRow[]
+  }
 
   return (
-    <FeatureGate feature="subscriptions" fallback={<LockedPage />}>
+    <FeatureGate feature="subscriptions" fallback={<LockedPage feature="Subscriptions" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <h1 className="text-xl font-bold text-gray-900">Subscriptions</h1>
         <Table
@@ -26,19 +43,11 @@ export default function SubscriptionsPage() {
             { key: 'razorpaySubscriptionId',from:'subscription', label: 'Razorpay ID' },
           ]}
           data={subscriptions}
-          emptyMessage={isLoading ? 'Loading…' : 'No active subscriptions.'}
+          emptyMessage="No active subscriptions."
         />
       </div>
     </FeatureGate>
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Subscriptions is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

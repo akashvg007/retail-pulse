@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -361,7 +362,7 @@ export default function PurchasesPage() {
   }
 
   return (
-    <FeatureGate feature="purchase_management" fallback={<LockedPage />}>
+    <FeatureGate feature="purchase_management" fallback={<LockedPage feature="Purchase Management" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -829,12 +830,3 @@ function formatStatus(value: string) {
   return value.replace(/_/g, ' ')
 }
 
-function LockedPage() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-      <div className="mb-4 text-4xl">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Purchase Management is not enabled</h2>
-      <p className="mt-2 max-w-sm text-gray-500">Contact your administrator to enable this feature for your account.</p>
-    </div>
-  )
-}

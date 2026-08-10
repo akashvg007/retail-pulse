@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Badge, invoiceStatusBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { ArrowLeft, Send, Printer, CheckCircle2, RotateCcw } from 'lucide-react'
 
@@ -96,7 +97,7 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <FeatureGate feature="invoicing" fallback={<LockedPage />}>
+    <FeatureGate feature="invoicing" fallback={<LockedPage feature="Invoicing" />}>
       <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
           <div className="flex items-center gap-3">
@@ -536,12 +537,4 @@ function InvoicePrintPreview({
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Invoicing is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

@@ -47,6 +47,7 @@ export async function PUT(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   const ctx = await requireAuth()
+  console.log('ctx :', ctx);
   if (ctx instanceof NextResponse) return ctx
   if (ctx.role !== 'super_admin' && ctx.role !== 'store_admin') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -65,9 +66,11 @@ export async function PUT(
 
   if (ctx.role === 'store_admin') {
     const staff = await Staff.findOne({ userId, tenantId }).lean()
+    console.log('staff :', staff);
     if (!staff) return NextResponse.json({ error: 'Staff not found' }, { status: 404 })
   }
 
+console.log('parsed.data.features :', parsed.data.features);
   await setStaffFeatures(userId, tenantId, parsed.data.features, ctx.userId)
   const updated = await getStaffFeatures(userId, tenantId)
   return NextResponse.json({ data: updated })

@@ -29,26 +29,22 @@ export default async function DashboardLayout({
   const session = await auth()
   if (!session?.user) redirect('/login')
 
-  if (session.user.role !== 'super_admin') {
-    if (!session.user.tenantId) {
-      return <LockedPage />
-    }
-
-    await connectDB()
-    const tenant = await Tenant.findById(session.user.tenantId).select({ active: 1 }).lean()
-    if (!tenant?.active) {
-      return <LockedPage />
-    }
-  }
-
   let features: TenantFeaturesMap
   if (session.user.role === 'super_admin') {
-    // Super admin always has all features
     features = Object.fromEntries(ALL_FEATURE_KEYS.map((k) => [k, true])) as TenantFeaturesMap
-  } else if (session.user.role === 'staff' && session.user.id && session.user.tenantId) {
-    features = await getStaffFeatures(session.user.id, session.user.tenantId)
   } else {
-    features = await getTenantFeatures(session.user.tenantId!)
+    if (!session.user.tenantId) return <LockedPage />
+
+    await connectDB()
+    // Run tenant active-check and feature loading in parallel
+    const [tenant, resolvedFeatures] = await Promise.all([
+      Tenant.findById(session.user.tenantId).select({ active: 1 }).lean(),
+      session.user.role === 'staff' && session.user.id
+        ? getStaffFeatures(session.user.id, session.user.tenantId)
+        : getTenantFeatures(session.user.tenantId),
+    ])
+    if (!tenant?.active) return <LockedPage />
+    features = resolvedFeatures
   }
 
   return (

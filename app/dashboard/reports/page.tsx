@@ -3,6 +3,7 @@ import { Suspense } from 'react'
 import { auth } from '@/lib/auth'
 import { getDashboardReportsData } from '@/lib/reports-data'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +23,7 @@ export default async function ReportsPage() {
     : null
 
   return (
-    <FeatureGate feature="reports" fallback={<LockedPage />}>
+    <FeatureGate feature="reports" fallback={<LockedPage feature="Reports" />}>
       <div className="space-y-6 p-4 sm:p-6">
         <h1 className="text-xl font-bold text-gray-900">Reports & Analytics</h1>
 
@@ -40,12 +41,4 @@ export default async function ReportsPage() {
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-      <div className="mb-4 text-4xl">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Reports is not enabled</h2>
-      <p className="mt-2 max-w-sm text-gray-500">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

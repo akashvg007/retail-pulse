@@ -1,11 +1,11 @@
-'use client'
-import useSWR from 'swr'
+import { auth } from '@/lib/auth'
+import { connectDB } from '@/lib/db'
+import { Invoice } from '@/models/Invoice'
 import { Table } from '@/components/ui/Table'
 import { Badge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { formatCurrency, formatDate } from '@/lib/utils'
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 interface PaymentRow {
   _id: string
@@ -17,12 +17,22 @@ interface PaymentRow {
   updatedAt: string
 }
 
-export default function PaymentsPage() {
-  const { data, isLoading } = useSWR('/api/invoices?status=paid&limit=50', fetcher)
-  const invoices = (data?.data ?? []) as PaymentRow[]
+export default async function PaymentsPage() {
+  const session = await auth()
+  const tenantId = session?.user?.tenantId
+
+  let invoices: PaymentRow[] = []
+  if (tenantId) {
+    await connectDB()
+    invoices = (await Invoice.find({ tenantId, status: 'paid' })
+      .populate('customerId', 'name')
+      .sort({ updatedAt: -1 })
+      .limit(50)
+      .lean()) as unknown as PaymentRow[]
+  }
 
   return (
-    <FeatureGate feature="payments" fallback={<LockedPage />}>
+    <FeatureGate feature="payments" fallback={<LockedPage feature="Payments" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <h1 className="text-xl font-bold text-gray-900">Payments</h1>
         <Table
@@ -36,19 +46,11 @@ export default function PaymentsPage() {
             { key: 'updatedAt',from:'payment', label: 'Date', render: (v) => formatDate(v) },
           ]}
           data={invoices}
-          emptyMessage={isLoading ? 'Loading…' : 'No payments recorded yet.'}
+          emptyMessage="No payments recorded yet."
         />
       </div>
     </FeatureGate>
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Payments is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

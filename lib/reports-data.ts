@@ -356,23 +356,22 @@ export async function getDashboardReportsData(
   })
 
   const invoiceIds = invoices.map((invoice) => invoice._id)
-  const capturedPayments = invoiceIds.length
-    ? ((await Payment.find({
-        tenantId: tenantObjectId,
-        status: 'captured',
-        invoiceId: { $in: invoiceIds },
-        ...makeDateFieldFilter('createdAt', dateBounds),
-      }).lean()) as unknown as PaymentLean[])
-    : []
-
-  const refundedPayments = invoiceIds.length
-    ? ((await Payment.find({
-        tenantId: tenantObjectId,
-        status: 'refunded',
-        invoiceId: { $in: invoiceIds },
-        ...makeDateFieldFilter('createdAt', dateBounds),
-      }).lean()) as unknown as PaymentLean[])
-    : []
+  const [capturedPayments, refundedPayments] = invoiceIds.length
+    ? ((await Promise.all([
+        Payment.find({
+          tenantId: tenantObjectId,
+          status: 'captured',
+          invoiceId: { $in: invoiceIds },
+          ...makeDateFieldFilter('createdAt', dateBounds),
+        }).lean(),
+        Payment.find({
+          tenantId: tenantObjectId,
+          status: 'refunded',
+          invoiceId: { $in: invoiceIds },
+          ...makeDateFieldFilter('createdAt', dateBounds),
+        }).lean(),
+      ])) as unknown as [PaymentLean[], PaymentLean[]])
+    : [[], []]
 
   let filteredInvoices = invoices
   let filteredCapturedPayments = capturedPayments

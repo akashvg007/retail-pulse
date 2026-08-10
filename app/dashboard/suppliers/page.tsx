@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { supplierSchema } from '@/lib/validations'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -84,7 +85,7 @@ export default function SuppliersPage() {
   }
 
   return (
-    <FeatureGate feature="supplier_management" fallback={<LockedPage />}>
+    <FeatureGate feature="supplier_management" fallback={<LockedPage feature="Supplier Management" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -206,12 +207,3 @@ export default function SuppliersPage() {
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center p-8 text-center">
-      <div className="mb-4 text-4xl">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Supplier Management is not enabled</h2>
-      <p className="mt-2 max-w-sm text-gray-500">Contact your administrator to enable this feature for your account.</p>
-    </div>
-  )
-}

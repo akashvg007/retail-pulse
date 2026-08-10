@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import ModalFooter from '@/components/ModalFooter';
 
@@ -57,7 +58,7 @@ export default function CustomersPage() {
   }
 
   return (
-    <FeatureGate feature="crm" fallback={<LockedPage />}>
+    <FeatureGate feature="crm" fallback={<LockedPage feature="CRM" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Customers</h1>
@@ -98,12 +99,4 @@ export default function CustomersPage() {
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">CRM is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

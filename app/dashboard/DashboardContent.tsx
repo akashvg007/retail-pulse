@@ -44,11 +44,12 @@ export async function DashboardContent() {
   let invoiceData: InvoiceStatusChartPoint[] = []
 
   if (tenantId) {
-    const features =
+    const [features, reportData] = await Promise.all([
       session?.user?.role === 'staff' && session.user.id
-        ? await getStaffFeatures(session.user.id, tenantId)
-        : await getTenantFeatures(tenantId)
-    const reportData = await getDashboardReportsData(tenantId)
+        ? getStaffFeatures(session.user.id, tenantId)
+        : getTenantFeatures(tenantId),
+      getDashboardReportsData(tenantId),
+    ])
 
     invoiceCount = features.invoicing ? reportData.invoiceCount : 0
     customerCount = features.crm ? reportData.customerCount : 0

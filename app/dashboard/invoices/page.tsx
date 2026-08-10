@@ -4,6 +4,7 @@ import { Table } from '@/components/ui/Table'
 import { Button } from '@/components/ui/Button'
 import { Badge, invoiceStatusBadge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { Plus, Send, Eye, CheckCircle2, RotateCcw } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
@@ -40,7 +41,7 @@ export default function InvoicesPage() {
   }
 
   return (
-    <FeatureGate feature="invoicing" fallback={<LockedPage />}>
+    <FeatureGate feature="invoicing" fallback={<LockedPage feature="Invoicing" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Invoices</h1>
@@ -62,7 +63,7 @@ export default function InvoicesPage() {
             { key: 'createdAt',from:'invoice', label: 'Date', render: (v) => formatDate(v) },
             { key: '_id',from:'invoice', label: '', render: (id, row) => (
               <div className="flex gap-2">
-                <Link href={`/dashboard/invoices/${id}`}>
+                <Link href={`/dashboard/invoices/${id}`} prefetch={false}>
                   <button className="text-gray-400 hover:text-indigo-600"><Eye size={14} /></button>
                 </Link>
                 {row.status === 'draft' && (
@@ -88,12 +89,4 @@ export default function InvoicesPage() {
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Invoicing is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

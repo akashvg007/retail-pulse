@@ -2,13 +2,16 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { ShoppingCart, Search, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { ProductGrid } from '@/components/pos/ProductGrid'
 import { CartPanel } from '@/components/pos/CartPanel'
-import { PaymentModal } from '@/components/pos/PaymentModal'
-import { CustomerModal } from '@/components/pos/CustomerModal'
+import dynamic from 'next/dynamic'
 import { MobileCartDrawer } from '@/components/pos/MobileCartDrawer'
+
+const PaymentModal = dynamic(() => import('@/components/pos/PaymentModal').then((m) => m.PaymentModal), { ssr: false })
+const CustomerModal = dynamic(() => import('@/components/pos/CustomerModal').then((m) => m.CustomerModal), { ssr: false })
 import type { CartItem, CustomerData, CustomerFormData, PaymentOption, ProductData } from '@/components/pos/types'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -526,7 +529,7 @@ export default function POSPage() {
   }
 
   return (
-    <FeatureGate feature="pos" fallback={<LockedPage />}>
+    <FeatureGate feature="pos" fallback={<LockedPage feature="POS" />}>
       <div ref={pageRef} className="flex h-full flex-col xl:flex-row">
         <div className="flex flex-1 flex-col">
           <div className="relative p-4 pb-0 sm:p-6">
@@ -673,12 +676,4 @@ export default function POSPage() {
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">POS is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+

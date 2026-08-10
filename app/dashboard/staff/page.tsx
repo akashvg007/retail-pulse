@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Modal } from '@/components/ui/Modal'
 import { Badge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
+import { LockedPage } from '@/components/LockedPage'
 import { Plus, Trash2, Settings2 } from 'lucide-react'
 import ModalFooter from '@/components/ModalFooter'
 import { useFeatures } from '@/contexts/FeatureContext'
@@ -117,7 +118,7 @@ export default function StaffPage() {
   }
 
   return (
-    <FeatureGate feature="staff_management" fallback={<LockedPage />}>
+    <FeatureGate feature="staff_management" fallback={<LockedPage feature="Staff Management" />}>
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Staff</h1>
@@ -209,12 +210,4 @@ export default function StaffPage() {
   )
 }
 
-function LockedPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-      <div className="text-4xl mb-4">🔒</div>
-      <h2 className="text-xl font-semibold text-gray-900">Staff Management is not enabled</h2>
-      <p className="text-gray-500 mt-2 max-w-sm">Contact your administrator to enable this feature.</p>
-    </div>
-  )
-}
+
