@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/Badge'
 import { formatCurrency } from '@/lib/utils'
 import { ProductActions } from './ProductActions'
 import type { ProductForm } from './types'
+import Image from 'next/image'
 
 interface ProductGridProps {
   products: ProductForm[]
@@ -22,12 +23,21 @@ export function ProductGrid({ products, isLoading, onEdit, onDelete }: ProductGr
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {products.map((product) => (
-        <div key={String(product._id)} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div key={String(product._id)} className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm bg-[url(${product.images?.[0] || '/placeholder-image.webp'})] bg-cover bg-no-repeat bg-center`}>
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>
               <p className="text-xs text-gray-500">{product.sku || 'No SKU'}</p>
             </div>
+            {product.tenantId === "6a7dc4718252f086ff545821" && (
+              <Image
+                src={product.images?.[0] || '/placeholder-image.webp'}
+                width={100}
+                height={100}
+                alt="preview"
+                quality={60}
+              className="w-full h-32 object-cover rounded-md border"
+            />)}
             <ProductActions
               onEdit={() => onEdit(product)}
               onDelete={() => onDelete(String(product._id!))}

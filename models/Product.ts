@@ -9,6 +9,7 @@ export interface IProduct extends Document {
   cost: number
   category: string
   stockQty: number
+  images: string[]
   taxRate: number
   active: boolean
   createdAt: Date
@@ -23,6 +24,7 @@ const ProductSchema = new Schema<IProduct>(
     description: String,
     price: { type: Number, required: true, min: 0 },
     cost: { type: Number, default: 0, min: 0 },
+    images: [{ type: String }],
     category: { type: String, default: 'General' },
     stockQty: { type: Number, default: 0 },
     taxRate: { type: Number, default: 18 },

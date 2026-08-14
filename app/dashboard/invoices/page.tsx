@@ -1,11 +1,10 @@
 'use client'
 import useSWR, { mutate } from 'swr'
 import { Table } from '@/components/ui/Table'
-import { Button } from '@/components/ui/Button'
 import { Badge, invoiceStatusBadge } from '@/components/ui/Badge'
 import { FeatureGate } from '@/components/FeatureGate'
 import { LockedPage } from '@/components/LockedPage'
-import { Plus, Send, Eye, CheckCircle2, RotateCcw } from 'lucide-react'
+import { Send, Eye, CheckCircle2, RotateCcw, Trash } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -30,6 +29,12 @@ export default function InvoicesPage() {
     mutate('/api/invoices?limit=50')
   }
 
+  async function deleteInvoice(id: string) {
+    if (!confirm('Are you sure you want to delete this invoice?')) return
+    await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+    mutate('/api/invoices?limit=50')
+  }
+
   async function togglePaidStatus(id: string, currentStatus: string) {
     const nextStatus = currentStatus === 'paid' ? 'sent' : 'paid'
     await fetch(`/api/invoices/${id}`, {
@@ -45,9 +50,6 @@ export default function InvoicesPage() {
       <div className="space-y-4 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-xl font-bold text-gray-900">Invoices</h1>
-          {/* <Link href="/dashboard/invoices/new">
-            <Button size="sm"><Plus size={14} /> New invoice</Button>
-          </Link> */}
         </div>
 
         <Table
@@ -63,8 +65,8 @@ export default function InvoicesPage() {
             { key: 'createdAt',from:'invoice', label: 'Date', render: (v) => formatDate(v) },
             { key: '_id',from:'invoice', label: '', render: (id, row) => (
               <div className="flex gap-2">
-                <Link href={`/dashboard/invoices/${id}`} prefetch={false}>
-                  <button className="text-gray-400 hover:text-indigo-600"><Eye size={14} /></button>
+                <Link className="flex cursor-pointer" href={`/dashboard/invoices/${id}`} prefetch={false}>
+                  <button className="text-gray-400 hover:text-indigo-600"><Eye size={18} /></button>
                 </Link>
                 {row.status === 'draft' && (
                   <button onClick={() => sendInvoice(id)} className="text-gray-400 hover:text-green-600" title="Send invoice">
@@ -77,6 +79,12 @@ export default function InvoicesPage() {
                   title={row.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
                 >
                   {row.status === 'paid' ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
+                </button>
+                <button
+                  onClick={() => deleteInvoice(id)}
+                  className="flex cursor-pointer text-gray-400 hover:text-red-600"
+                >
+                  <Trash size={14} />
                 </button>
               </div>
             )},

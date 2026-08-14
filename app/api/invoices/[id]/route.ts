@@ -117,9 +117,8 @@ export async function DELETE(
 
   await connectDB()
   const { id } = await params
-  await Invoice.findOneAndUpdate(
-    { _id: id, tenantId: ctx.tenantId, status: { $in: ['draft', 'sent'] } },
-    { status: 'cancelled' }
+  await Invoice.findOneAndDelete(
+    { _id: id, tenantId: ctx.tenantId }
   )
   return NextResponse.json({ success: true })
 }

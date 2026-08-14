@@ -20,7 +20,6 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 export default function CustomersPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<CustomerForm | null>(null)
-  console.log("editing ==> ", editing);
   const { data, isLoading } = useSWR('/api/customers?limit=50', fetcher)
   const customers = data?.data ?? []
 

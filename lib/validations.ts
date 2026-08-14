@@ -14,9 +14,11 @@ export const loginSchema = z.object({
 
 export const productSchema = z.object({
   _id: z.string().optional(),
+  tenantId: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   sku: z.string().min(1, 'SKU is required'),
   description: z.string().optional(),
+  images: z.array(z.string()).optional().default([]),
   price: z.number({ error: 'Price must be a number' }).min(0),
   cost: z.number().min(0).optional().default(0),
   category: z.string().optional().default('General'),
