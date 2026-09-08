@@ -75,6 +75,7 @@ export default function InvoiceDetailPage() {
                 className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700"
               >
                 <option value="standard-a4">A4 - Standard</option>
+                <option value="standard-a5">A5 - Standard</option>
                 <option value="minimal-a4">A4 - Minimal</option>
                 <option value="thermal-detailed">Thermal - Detailed</option>
                 <option value="thermal-compact">Thermal - Compact</option>

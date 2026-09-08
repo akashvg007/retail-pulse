@@ -1,14 +1,21 @@
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { InvoiceData, InvoicePrintTemplate } from "../type";
+import Image from "next/image";
+
+type InvoiceBranding = {
+  name?: string;
+  businessLogo?: string;
+};
 
 export default function InvoicePrintPreview({
   invoice,
   template,
 }: {
-  invoice: InvoiceData;
+  invoice: InvoiceData & { tenantBranding?: InvoiceBranding };
   template: InvoicePrintTemplate;
 }) {
-  const businessName = invoice.businessName?.trim() || "Your Shop";
+  const businessName = invoice.tenantBranding?.name || invoice.businessName?.trim() || "Your Shop";
+  const logo = invoice.tenantBranding?.businessLogo;
   const customerName =
     invoice.customerId?.name ?? invoice.customerSnapshot?.name;
   const customerEmail =
@@ -16,26 +23,36 @@ export default function InvoicePrintPreview({
   const customerGst =
     invoice.customerId?.gstNumber ?? invoice.customerSnapshot?.gstNumber;
 
-  if (template === "standard-a4") {
+  if (template === "standard-a4" || template === "standard-a5") {
     return (
-      <div className="hidden print:block print:mx-auto print:max-w-3xl print:bg-white print:rounded-none print:shadow-none print:border-0">
+      <div className={`hidden print:block print:mx-auto print:bg-white print:rounded-none print:shadow-none print:border-0 ${template === "standard-a5" ? "invoice-print-a5" : "print:max-w-3xl"}`}>
         <div className="border-b border-gray-200 pb-4">
           <div className="flex items-start justify-between">
-            <div>
-              <p className="text-lg font-semibold text-gray-900">
-                {businessName}
-              </p>
-              <p className="text-2xl font-bold text-gray-900">Invoice</p>
-              <p className="text-sm text-gray-500 mt-1">{invoice.invoiceNo}</p>
-            </div>
+            <div className="flex gap-4">
+              {logo && (
+                <Image
+                  src={logo}
+                  alt="Business Logo"
+                  width={150}
+                  height={64}
+                  className="max-h-16 w-auto object-contain"
+                />
+              )}
+              <div>
+                <p className="text-lg font-semibold text-gray-900">
+              {businessName}
+            </p>
+                <p className="text-2xl font-bold text-gray-900">Invoice</p>
+                <p className="text-sm text-gray-500 mt-1">{invoice.invoiceNo}</p>
+              </div>
+          </div>
             <div className="text-right text-sm text-gray-600">
               <p>Issued {formatDate(invoice.createdAt)}</p>
               {invoice.dueDate && <p>Due {formatDate(invoice.dueDate)}</p>}
               {invoice.staffName && <p>Issued by {invoice.staffName}</p>}
             </div>
-          </div>
         </div>
-
+        </div>
         <div className="py-4 text-sm text-gray-700">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Bill To
@@ -45,7 +62,7 @@ export default function InvoicePrintPreview({
           </p>
           {customerEmail && <p>{customerEmail}</p>}
           {customerGst && <p>GST: {customerGst}</p>}
-        </div>
+              </div>
 
         <table className="w-full text-sm border-y border-gray-200">
           <thead>
@@ -58,7 +75,7 @@ export default function InvoicePrintPreview({
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item, i) => (
+        {invoice.items.map((item, i) => (
               <tr key={i} className="border-t border-gray-100">
                 <td className="py-2 text-gray-900">{item.name}</td>
                 <td className="py-2 text-right">{item.qty}</td>
@@ -70,7 +87,7 @@ export default function InvoicePrintPreview({
                   {formatCurrency(item.total)}
                 </td>
               </tr>
-            ))}
+        ))}
           </tbody>
         </table>
 
@@ -89,13 +106,13 @@ export default function InvoicePrintPreview({
             <div className="mt-1 flex justify-between text-gray-700">
               <span>Discount</span>
               <span>-{formatCurrency(invoice.discount)}</span>
-            </div>
+          </div>
           )}
           <div className="mt-2 flex justify-between border-t border-gray-300 pt-2 font-bold text-gray-900">
             <span>Total</span>
             <span>{formatCurrency(invoice.total)}</span>
-          </div>
-        </div>
+      </div>
+    </div>
 
         {invoice.notes && (
           <div className="mt-5 text-sm text-gray-600">
@@ -106,38 +123,49 @@ export default function InvoicePrintPreview({
           </div>
         )}
       </div>
-    );
-  }
+  );
+}
 
   if (template === "minimal-a4") {
     return (
       <div className="hidden print:block print:mx-auto print:max-w-3xl print:bg-white print:rounded-none print:shadow-none print:border-0">
         <div className="flex items-end justify-between border-b border-gray-300 pb-3">
-          <div>
-            <p className="text-base font-semibold text-gray-900">
-              {businessName}
-            </p>
-            <h2 className="text-xl font-bold tracking-tight">
-              {invoice.invoiceNo}
-            </h2>
-          </div>
+          <div className="flex gap-3">
+            {logo && (
+              <Image
+                src={logo}
+                alt="Business Logo"
+                width={100}
+                height={48}
+                className="max-h-12 w-auto object-contain"
+              />
+            )}
+            <div>
+              <p className="text-base font-semibold text-gray-900">
+            {businessName}
+          </p>
+              <h2 className="text-xl font-bold tracking-tight">
+                {invoice.invoiceNo}
+              </h2>
+              </div>
+            </div>
           <p className="text-xs text-gray-600">
             {formatDate(invoice.createdAt)}
           </p>
-        </div>
+            </div>
 
         <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-600">
           <div>
             <p className="font-semibold text-gray-900">Customer</p>
             <p>{customerName || "Walk-in customer"}</p>
             {customerEmail && <p>{customerEmail}</p>}
-          </div>
+              </div>
           <div className="text-right">
             {invoice.dueDate && <p>Due: {formatDate(invoice.dueDate)}</p>}
             {invoice.staffName && <p>Staff: {invoice.staffName}</p>}
             <p>Status: {invoice.status}</p>
           </div>
-        </div>
+              </div>
 
         <table className="mt-4 w-full text-xs">
           <thead>
@@ -148,7 +176,7 @@ export default function InvoicePrintPreview({
             </tr>
           </thead>
           <tbody>
-            {invoice.items.map((item, i) => (
+        {invoice.items.map((item, i) => (
               <tr key={i} className="border-b border-gray-100">
                 <td className="py-1.5">{item.name}</td>
                 <td className="py-1.5 text-right">{item.qty}</td>
@@ -156,7 +184,7 @@ export default function InvoicePrintPreview({
                   {formatCurrency(item.total)}
                 </td>
               </tr>
-            ))}
+        ))}
           </tbody>
         </table>
 
@@ -175,21 +203,26 @@ export default function InvoicePrintPreview({
             <div className="mt-1 flex justify-between">
               <span>Discount</span>
               <span>-{formatCurrency(invoice.discount)}</span>
-            </div>
+          </div>
           )}
           <div className="mt-1.5 flex justify-between border-t border-gray-300 pt-1.5 font-bold text-gray-900">
             <span>Total</span>
             <span>{formatCurrency(invoice.total)}</span>
-          </div>
-        </div>
       </div>
-    );
-  }
+    </div>
+      </div>
+  );
+}
 
   if (template === "thermal-detailed") {
     return (
       <div className="hidden print:flex print:justify-center">
         <div className="thermal-print thermal-print-detailed border border-gray-200 bg-white p-2 font-mono text-[11px] text-black leading-tight">
+          {logo && (
+            <div className="flex justify-center mb-1">
+              <Image src={logo} alt="Logo" width={120} height={64} className="max-h-16 w-auto object-contain" />
+            </div>
+          )}
           <p className="text-center text-sm font-bold uppercase">
             {businessName}
           </p>
@@ -261,6 +294,11 @@ export default function InvoicePrintPreview({
   return (
     <div className="hidden print:flex print:justify-center">
       <div className="thermal-print thermal-print-compact border border-gray-200 bg-white px-2 py-1.5 font-mono text-[10px] text-black leading-tight">
+        {logo && (
+          <div className="flex justify-center mb-1">
+            <Image src={logo} alt="Logo" width={80} height={40} className="max-h-10 w-auto object-contain" />
+          </div>
+        )}
         <div className="text-center">
           <p className="font-bold uppercase">{businessName}</p>
           <p className="font-bold">{invoice.invoiceNo}</p>
@@ -300,3 +338,4 @@ export default function InvoicePrintPreview({
     </div>
   );
 }
+

@@ -1,6 +1,7 @@
 
 export type InvoicePrintTemplate =
   | "standard-a4"
+  | "standard-a5"
   | "minimal-a4"
   | "thermal-detailed"
   | "thermal-compact";

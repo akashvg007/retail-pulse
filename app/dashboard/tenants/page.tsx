@@ -98,6 +98,7 @@ export default function TenantsPage() {
           )},
         ]}
         data={tenants}
+        isLoading={isLoading}
         emptyMessage={isLoading ? 'Loading…' : 'No tenants yet.'}
       />
 

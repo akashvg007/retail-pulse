@@ -155,7 +155,8 @@ export default function StaffPage() {
             )},
           ]}
           data={staffList}
-          emptyMessage={isLoading ? 'Loading…' : 'No staff members yet.'}
+          isLoading={isLoading}
+          emptyMessage="No staff members yet."
         />
       </div>
 

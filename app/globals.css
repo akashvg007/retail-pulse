@@ -130,6 +130,12 @@
 }
 
 @media print {
+  .invoice-print-a5 {
+    width: 148mm;
+    max-width: 148mm;
+    box-sizing: border-box;
+  }
+
   .thermal-print {
     width: 72mm;
     max-width: 72mm;

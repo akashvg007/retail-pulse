@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/Badge'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { Search } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import type { ProductData } from './types'
@@ -25,7 +26,17 @@ export function ProductGrid({ products, isLoading, lastAddedId, searchTerm, onAd
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-        {products.length > 0 ? (
+        {isLoading ? (
+          Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="rounded-xl border border-gray-200 bg-white p-4">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="mt-3 h-3 w-1/2" />
+              <Skeleton className="mt-2 h-3 w-2/3" />
+              <Skeleton className="mt-4 h-5 w-1/3" />
+              <Skeleton className="mt-2 h-5 w-16 rounded-full" />
+            </div>
+          ))
+        ) : products.length > 0 ? (
           products.map((product) => (
             <button
               key={product._id}

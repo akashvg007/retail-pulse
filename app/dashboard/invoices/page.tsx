@@ -90,7 +90,8 @@ export default function InvoicesPage() {
             )},
           ]}
           data={invoices}
-          emptyMessage={isLoading ? 'Loading…' : 'No invoices yet.'}
+          isLoading={isLoading}
+          emptyMessage="No invoices yet."
         />
       </div>
     </FeatureGate>

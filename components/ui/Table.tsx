@@ -1,9 +1,11 @@
 import { cn } from '@/lib/utils'
+import { SkeletonTableRows } from '@/components/ui/Skeleton'
 
 interface Column<T> {
   key: keyof T | string
   from: string
   label: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   render?: (value: any, row: T) => React.ReactNode
   className?: string
 }
@@ -14,14 +16,19 @@ interface TableProps<T> {
   keyField?: keyof T
   className?: string
   emptyMessage?: string
+  isLoading?: boolean
+  loadingRows?: number
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function Table<T extends Record<string, any>>({
   columns,
   data,
   keyField = '_id' as keyof T,
   className,
   emptyMessage = 'No records found',
+  isLoading = false,
+  loadingRows = 5,
 }: TableProps<T>) {
   return (
     <div className={cn('overflow-x-auto rounded-lg border border-gray-200', className)}>
@@ -42,7 +49,9 @@ export function Table<T extends Record<string, any>>({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 bg-white">
-          {data.length === 0 ? (
+          {isLoading ? (
+            <SkeletonTableRows columns={columns.length} rows={loadingRows} />
+          ) : data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-gray-400">
                 {emptyMessage}

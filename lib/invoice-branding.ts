@@ -46,7 +46,7 @@ export function buildInvoiceWithBranding(invoice: IInvoice, tenant: ITenant): In
   return {
     ...invoice.toObject?.() ?? invoice,
     tenantBranding: {
-      businessLogo: tenant.settings?.branding?.businessLogo,
+      businessLogo: tenant.settings?.branding?.businessLogo || tenant.settings?.logo,
       primaryColor: tenant.settings?.branding?.primaryColor,
       secondaryColor: tenant.settings?.branding?.secondaryColor,
       tagline: tenant.settings?.branding?.tagline,

@@ -9,9 +9,10 @@ interface ModalProps {
   title?: string
   children: React.ReactNode
   className?: string
+  wrapperClassName?: string
 }
 
-export function Modal({ open, onClose, title, children, className }: ModalProps) {
+export function Modal({ open, onClose, title, children, className, wrapperClassName }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -25,7 +26,7 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className={cn('fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4', wrapperClassName)}>
       <div
         ref={overlayRef}
         className="absolute inset-0 bg-black/50"

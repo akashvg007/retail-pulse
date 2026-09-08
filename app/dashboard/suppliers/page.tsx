@@ -152,7 +152,8 @@ export default function SuppliersPage() {
             },
           ]}
           data={suppliers}
-          emptyMessage={isLoading ? 'Loading…' : 'No suppliers found.'}
+          isLoading={isLoading}
+          emptyMessage="No suppliers found."
         />
 
         <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-3 text-sm text-gray-600">

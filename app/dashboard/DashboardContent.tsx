@@ -4,10 +4,11 @@ import { getStaffFeatures, getTenantFeatures } from '@/lib/features'
 import { getDashboardReportsData } from '@/lib/reports-data'
 import { KPICard } from '@/components/KPICard'
 import { FeatureGate } from '@/components/FeatureGate'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { FileText, Users, Package, DollarSign } from 'lucide-react'
 
 const DashboardChartsSection = dynamic(() => import('./DashboardCharts').then((module) => module.DashboardCharts), {
-  loading: () => <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading charts…</div>,
+  loading: () => <Skeleton className="h-64 rounded-xl bg-white" />,
 })
 
 type RevenueChartPoint = {

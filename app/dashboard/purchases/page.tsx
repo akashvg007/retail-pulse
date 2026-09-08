@@ -12,20 +12,13 @@ import ModalFooter from '@/components/ModalFooter'
 import BillImageInput from '@/components/purchases/BillImageInput'
 import OcrReviewPanel from '@/components/purchases/OcrReviewPanel'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import { extractBillDataFromImage } from '@/lib/ocr/client'
 import type { OcrExtractedData } from '@/lib/ocr/types'
 import { OCR_AUTOFILL_CONFIDENCE_THRESHOLD } from '@/lib/ocr/types'
 import { useFeature } from '@/contexts/FeatureContext'
 import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle, Eye, Boxes } from 'lucide-react'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 type PurchaseStatus = 'draft' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled'
-
-interface PurchaseItemForm {
-  name: string
-  qty: number
-  unitCost: number
-  taxRate: number
-}
 
 interface SupplierOption {
   _id: string
@@ -33,6 +26,13 @@ interface SupplierOption {
   code: string
   phone?: string
   email?: string
+}
+
+interface PurchaseItemForm {
+  name: string
+  qty: number
+  unitCost: number
+  taxRate: number
 }
 
 interface PurchaseRow {
@@ -178,8 +178,8 @@ export default function PurchasesPage() {
   }
 
   async function handleBillSelection(file: File) {
-    if (!file.type.startsWith('image/')) {
-      setOcrError('Only image files are supported for bill OCR.')
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      setOcrError('Only PDF, PNG, JPEG, and WebP files are supported for bill OCR.')
       return
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -193,16 +193,20 @@ export default function PurchasesPage() {
     setOcrError(null)
     setOcrFileName(file.name)
     try {
-      const extracted = await extractBillDataFromImage(file, ({ progress, status }) => {
-        setOcrProgress(progress)
-        if (status) setOcrStage(status)
-      })
+      setOcrStage('Uploading bill to Gemini')
+      setOcrProgress(0.2)
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await fetch('/api/purchases/ocr', { method: 'POST', body: formData })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result?.error || 'Unable to extract bill details')
+      const extracted = result.data as OcrExtractedData
       setOcrProgress(1)
       setOcrStage('Extraction complete')
       setOcrData(extracted)
-    } catch {
+    } catch (extractionError) {
       setOcrData(null)
-      setOcrError('Could not extract bill details. Please retry or continue with manual entry.')
+      setOcrError(extractionError instanceof Error ? extractionError.message : 'Could not extract bill details. Please retry or continue with manual entry.')
     } finally {
       setOcrBusy(false)
     }
@@ -261,7 +265,7 @@ export default function PurchasesPage() {
           ? {
             confidence: Number(ocrData.confidence.toFixed(2)),
             extractedAt: new Date().toISOString(),
-            source: 'client-ocr',
+            source: 'gemini-flash-lite',
             warnings: ocrData.warnings.map((warning) => warning.code),
           }
           : undefined,
@@ -676,7 +680,7 @@ export default function PurchasesPage() {
         title={selectedPurchase ? `Purchase order ${selectedPurchase.poNo}` : 'Purchase order'}
         className="max-w-3xl"
       >
-        {viewLoading ? <p className="text-sm text-gray-600">Loading purchase order...</p> : null}
+        {viewLoading ? <Skeleton className="h-48 w-full rounded-lg bg-gray-100" /> : null}
         {viewError ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{viewError}</div>
         ) : null}

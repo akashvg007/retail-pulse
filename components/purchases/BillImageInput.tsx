@@ -34,9 +34,9 @@ export default function BillImageInput({
 
   return (
     <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-      <p className="text-sm font-medium text-gray-800">Bill image (optional)</p>
+      <p className="text-sm font-medium text-gray-800">Bill document (optional)</p>
       <p className="text-xs text-gray-500">
-        Upload a bill image or capture one using your camera, then review extracted details before filling the order.
+        Upload a bill PDF or image, then review extracted details before filling the order.
       </p>
 
       <div className="flex flex-wrap gap-2">
@@ -56,7 +56,7 @@ export default function BillImageInput({
       <input
         ref={uploadRef}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept="application/pdf,image/png,image/jpeg,image/webp"
         className="hidden"
         onChange={(event) => handleFileInput(event, 'upload')}
       />

@@ -23,7 +23,7 @@ export function ProductGrid({ products, isLoading, onEdit, onDelete }: ProductGr
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {products.map((product) => (
-        <div key={String(product._id)} className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm bg-[url(${product.images?.[0] || '/placeholder-image.webp'})] bg-cover bg-no-repeat bg-center`}>
+        <div key={String(product._id)} className={`rounded-xl border border-gray-200 bg-white p-4 shadow-sm `}>
           <div className="mb-3 flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-gray-900">{product.name}</h3>

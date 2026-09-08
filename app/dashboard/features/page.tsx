@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { FEATURE_META, type FeatureKey } from '@/types/features'
 import ToggleSlider from '@/components/ToggleSlider';
+import { FeaturePageSkeleton } from '@/components/loading/PageSkeletons'
 
 interface PlatformFlag {
   key: FeatureKey
@@ -48,7 +49,7 @@ export default function FeatureFlagsPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <FeaturePageSkeleton />
       ) : (
         <div className="space-y-2">
           {flags.map((flag) => (

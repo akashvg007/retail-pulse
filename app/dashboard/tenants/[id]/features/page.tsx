@@ -6,6 +6,7 @@ import { FEATURE_META, ALL_FEATURE_KEYS, type FeatureKey } from '@/types/feature
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
 import ToggleSlider from '@/components/ToggleSlider';
+import { FeaturePageSkeleton } from '@/components/loading/PageSkeletons'
 
 export default function TenantFeaturesPage() {
   const { id: tenantId } = useParams<{ id: string }>()
@@ -51,7 +52,7 @@ export default function TenantFeaturesPage() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-gray-400">Loading…</p>
+        <FeaturePageSkeleton />
       ) : (
         <div className="space-y-2">
           {ALL_FEATURE_KEYS.map((key) => {

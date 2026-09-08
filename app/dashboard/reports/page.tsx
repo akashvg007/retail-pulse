@@ -4,11 +4,12 @@ import { auth } from '@/lib/auth'
 import { getDashboardReportsData } from '@/lib/reports-data'
 import { FeatureGate } from '@/components/FeatureGate'
 import { LockedPage } from '@/components/LockedPage'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 export const dynamic = 'force-dynamic'
 
 const ReportsAnalytics = dynamicImport(() => import('@/components/reports/ReportsAnalytics').then((module) => module.ReportsAnalytics), {
-  loading: () => <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading reports…</div>,
+  loading: () => <Skeleton className="h-96 rounded-2xl bg-white" />,
 })
 
 export default async function ReportsPage() {
@@ -28,7 +29,7 @@ export default async function ReportsPage() {
         <h1 className="text-xl font-bold text-gray-900">Reports & Analytics</h1>
 
         {reportData ? (
-          <Suspense fallback={<div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading reports…</div>}>
+          <Suspense fallback={<Skeleton className="h-96 rounded-2xl bg-white" />}>
             <ReportsAnalytics reportData={reportData} />
           </Suspense>
         ) : (

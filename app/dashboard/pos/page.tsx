@@ -1,17 +1,23 @@
 'use client'
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import useSWR from 'swr'
+import { useRouter } from 'next/navigation'
 import { FeatureGate } from '@/components/FeatureGate'
 import { LockedPage } from '@/components/LockedPage'
-import { ShoppingCart, Search, X } from 'lucide-react'
+import { ShoppingCart, Search, X, FileText } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { ProductGrid } from '@/components/pos/ProductGrid'
 import { CartPanel } from '@/components/pos/CartPanel'
 import dynamic from 'next/dynamic'
 import { MobileCartDrawer } from '@/components/pos/MobileCartDrawer'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Skeleton } from '@/components/ui/Skeleton'
+import type { InvoiceData } from '@/app/dashboard/invoices/type'
 
-const PaymentModal = dynamic(() => import('@/components/pos/PaymentModal').then((m) => m.PaymentModal), { ssr: false })
-const CustomerModal = dynamic(() => import('@/components/pos/CustomerModal').then((m) => m.CustomerModal), { ssr: false })
+const ModalFallback = () => <Skeleton className="h-72 w-full rounded-xl bg-white" />
+const PaymentModal = dynamic(() => import('@/components/pos/PaymentModal').then((m) => m.PaymentModal), { ssr: false, loading: ModalFallback })
+const CustomerModal = dynamic(() => import('@/components/pos/CustomerModal').then((m) => m.CustomerModal), { ssr: false, loading: ModalFallback })
 import type { CartItem, CustomerData, CustomerFormData, PaymentOption, ProductData } from '@/components/pos/types'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -50,15 +56,8 @@ function getDefaultCreditDueDate() {
   return date.toISOString().split('T')[0]
 }
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
 export default function POSPage() {
+  const router = useRouter()
   const pageRef = useRef<HTMLDivElement>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartDrawerOpen, setCartDrawerOpen] = useState(false)
@@ -70,6 +69,7 @@ export default function POSPage() {
   const [cashReceived, setCashReceived] = useState('')
   const [creditDueDate, setCreditDueDate] = useState(getDefaultCreditDueDate())
   const [paymentError, setPaymentError] = useState('')
+  const [completedInvoice, setCompletedInvoice] = useState<InvoiceData | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
@@ -376,7 +376,6 @@ export default function POSPage() {
               const verifyError = await verifyRes.json().catch(() => ({}))
               throw new Error(verifyError?.error ?? 'Unable to verify payment')
             }
-            clearSaleState()
             resolve()
           } catch (error) {
             reject(error)
@@ -390,7 +389,8 @@ export default function POSPage() {
       payment.open()
     })
 
-    alert('Online payment successful!')
+    clearSaleState()
+    return invoice
   }
 
   async function processUPIPayment() {
@@ -407,7 +407,7 @@ export default function POSPage() {
     }
 
     clearSaleState()
-    alert('UPI payment recorded successfully.')
+    return invoice
   }
 
   async function processCashPayment() {
@@ -431,7 +431,7 @@ export default function POSPage() {
     }
 
     clearSaleState()
-    alert(`Payment successful! Balance: ${formatCurrency(cashBalance)}`)
+    return invoice
   }
 
   async function processCreditSale() {
@@ -448,7 +448,7 @@ export default function POSPage() {
     }
 
     clearSaleState()
-    alert(`Credit sale created successfully. Due date: ${formatDate(creditDueDate)}`)
+    return invoice
   }
 
   async function confirmPayment() {
@@ -456,15 +456,20 @@ export default function POSPage() {
     setPaying(true)
     setPaymentError('')
     try {
+      let invoice: { _id: string }
       if (paymentOption === 'cash') {
-        await processCashPayment()
+        invoice = await processCashPayment()
       } else if (paymentOption === 'credit') {
-        await processCreditSale()
+        invoice = await processCreditSale()
       } else if (paymentOption === 'upi') {
-        await processUPIPayment()
+        invoice = await processUPIPayment()
       } else {
-        await processOnlinePayment()
+        invoice = await processOnlinePayment()
       }
+      const invoiceRes = await fetch(`/api/invoices/${invoice._id}`)
+      if (!invoiceRes.ok) throw new Error('Payment succeeded, but the invoice could not be loaded for printing')
+      const { data: completed } = await invoiceRes.json()
+      setCompletedInvoice(completed)
       resetPaymentState()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to process payment'
@@ -662,6 +667,32 @@ export default function POSPage() {
         }}
         onConfirmPayment={confirmPayment}
       />
+
+      <Modal
+        open={Boolean(completedInvoice)}
+        onClose={() => setCompletedInvoice(null)}
+        title="Payment successful"
+        wrapperClassName="print:hidden"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Invoice {completedInvoice?.invoiceNo} is ready to review. You can choose a template and print it from the invoice page.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setCompletedInvoice(null)}>
+              Done
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (completedInvoice?._id) router.push(`/dashboard/invoices/${completedInvoice._id}`)
+              }}
+            >
+              <FileText size={14} /> View invoice
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <CustomerModal
         open={customerOpen}

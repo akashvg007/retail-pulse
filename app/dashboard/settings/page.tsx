@@ -4,7 +4,10 @@ import Image from 'next/image'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { uploadImageToCloudinary } from '@/util/common.util'
+import { ProgressBar } from '@/components/ui/ProgressBar'
+import { SettingsPageSkeleton } from '@/components/loading/PageSkeletons'
 
 interface SettingsForm {
   name?: string
@@ -29,36 +32,73 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [logoPreview, setLogoPreview] = useState<string>('')
-  const { register, handleSubmit, formState: { isSubmitting }, watch, reset } = useForm<SettingsForm>({
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const { register, handleSubmit, setValue, formState: { isSubmitting } } = useForm<SettingsForm>({
     defaultValues: async () => {
       const res = await fetch('/api/tenants/settings')
       const { data } = await res.json()
       setLoading(false)
+      setLogoPreview(data?.logo || '')
       return {
         gstNumber: data?.gstNumber,
         address: data?.address,
         logo: data?.logo,
         taxRate: data?.taxRate || 18,
         currency: data?.currency || 'INR',
-        branding: data?.branding || {},
+          branding: {
+          ...data?.branding,
+          businessLogo: data?.logo || data?.branding?.businessLogo
+        }
       }
-    },
+          },
   })
 
-  const businessLogoValue = watch('branding.businessLogo')
 
-  useEffect(() => {
-    if (businessLogoValue?.startsWith('data:')) {
-      setLogoPreview(businessLogoValue)
-    }
-  }, [businessLogoValue])
+    // Upload images to Cloudinary
+    const uploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+      const uploaded: string[] = [];
+
+      setUploadProgress(0);
+
+      for (const file of Array.from(files)) {
+        const imgUrl = await uploadImageToCloudinary(file, (progress) => {
+          setUploadProgress(progress);
+        });
+        uploaded.push(imgUrl);
+        }
+
+      setLogoPreview(uploaded[0]);
+      setValue('logo', uploaded[0]);
+      setUploadProgress(null);
+    };
 
   async function onSubmit(data: SettingsForm) {
     try {
+      const payload = {
+        settings: {
+          gstNumber: data.gstNumber,
+          address: data.address,
+          logo: data.logo,
+          taxRate: data.taxRate,
+          currency: data.currency,
+          branding: {
+            businessLogo: data.logo, // Syncing logo with branding.businessLogo
+            primaryColor: data.branding?.primaryColor || undefined,
+            secondaryColor: data.branding?.secondaryColor || undefined,
+            tagline: data.branding?.tagline || undefined,
+            paymentTerms: data.branding?.paymentTerms || undefined,
+            invoiceFooter: data.branding?.invoiceFooter || undefined,
+            phone: data.branding?.phone || undefined,
+            email: data.branding?.email || undefined,
+          },
+        }
+      }
       await fetch('/api/tenants/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: data }),
+        body: JSON.stringify(payload),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -68,7 +108,7 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="p-4 text-gray-500">Loading...</div>
+    return <SettingsPageSkeleton />
   }
 
   return (
@@ -105,23 +145,9 @@ export default function SettingsPage() {
               
               <div>
                 <label className="text-sm font-medium text-gray-700">Business Logo</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-1 block w-full text-sm"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (event) => {
-                        const base64 = event.target?.result as string
-                        register('branding.businessLogo').onChange({ target: { value: base64 } })
-                        setLogoPreview(base64)
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                />
+                <Input id="images" type="file" multiple onChange={uploadImage} />
+                {uploadProgress !== null && <ProgressBar progress={uploadProgress} />}
+
                 {logoPreview && (
                   <div className="relative mt-2 flex h-20 items-center justify-center rounded-lg bg-gray-100 p-2">
                     <Image
@@ -217,3 +243,4 @@ export default function SettingsPage() {
     </div>
   )
 }
+

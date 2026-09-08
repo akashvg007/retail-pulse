@@ -78,7 +78,8 @@ export default function CustomersPage() {
             )},
           ]}
           data={customers}
-          emptyMessage={isLoading ? 'Loading…' : 'No customers yet.'}
+          isLoading={isLoading}
+          emptyMessage="No customers yet."
         />
       </div>
 
