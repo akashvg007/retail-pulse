@@ -15,7 +15,7 @@ function applyAction(order: {
   status: string
   total: number
   inventoryPostedAt?: Date
-  items: Array<{ qty: number; receivedQty: number; returnedQty: number; unitCost: number; taxRate: number; total: number }>
+  items: Array<{ qty: number; receivedQty: number; returnedQty: number; unitCost: number; taxRate: number; total: number; price: number }>
 }) {
   return {
     approve: () => {
@@ -143,7 +143,7 @@ export async function PATCH(
               { _id: item.productId, tenantId: ctx.tenantId, active: true },
               {
                 $inc: { stockQty: qtyToAdd },
-                $set: { cost: item.unitCost, taxRate: item.taxRate },
+                $set: { cost: item.unitCost, price: item.price, mrp: item.mrp, taxRate: item.taxRate, gstRate: item.taxRate, hsnCode: item.hsnCode },
               },
               { new: true }
             )
@@ -158,7 +158,7 @@ export async function PATCH(
               },
               {
                 $inc: { stockQty: qtyToAdd },
-                $set: { cost: item.unitCost, taxRate: item.taxRate },
+                $set: { cost: item.unitCost, price: item.price, mrp: item.mrp, taxRate: item.taxRate, gstRate: item.taxRate, hsnCode: item.hsnCode },
               },
               { new: true }
             )
@@ -170,11 +170,14 @@ export async function PATCH(
               name: item.name,
               sku: generateSku(item.name, index),
               description: `Auto-created from ${existing.poNo}`,
-              price: Number(item.unitCost || 0),
+              price: Number(item.price || item.unitCost || 0),
               cost: Number(item.unitCost || 0),
+              mrp: Number(item.mrp || 0),
               category: 'Purchased',
+              hsnCode: item.hsnCode,
               stockQty: qtyToAdd,
               taxRate: Number(item.taxRate || 0),
+              gstRate: Number(item.taxRate || 0),
               active: true,
             })
           }

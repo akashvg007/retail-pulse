@@ -17,10 +17,10 @@ export function BulkImportPanel({ onImportSuccess }: BulkImportPanelProps) {
 
   async function downloadSampleTemplate() {
     const { utils, writeFile } = await import('xlsx')
-    const headers = ['name', 'sku', 'category', 'price', 'cost', 'stockQty', 'taxRate', 'description']
+    const headers = ['name', 'sku', 'hsnCode', 'category', 'price', 'cost', 'mrp', 'stockQty', 'gstRate', 'description']
     const rows = [
-      ['Milk Powder', 'MILK-001', 'Beverages', 250, 180, 50, 5, 'Daily essentials'],
-      ['Soap', 'SOAP-002', 'Household', 45, 28, 120, 5, 'Bathing soap'],
+      ['Milk Powder', 'MILK-001', '0402', 'Beverages', 250, 180, 300, 50, 5, 'Daily essentials'],
+      ['Soap', 'SOAP-002', '3401', 'Household', 45, 28, 60, 120, 5, 'Bathing soap'],
     ]
     const worksheet = utils.aoa_to_sheet([headers, ...rows])
     const workbook = utils.book_new()

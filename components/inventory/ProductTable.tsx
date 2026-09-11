@@ -18,7 +18,9 @@ export function ProductTable({ products, isLoading, onEdit, onDelete }: ProductT
         { key: 'name', from: 'inventory', label: 'Name' },
         { key: 'sku', from: 'inventory', label: 'SKU' },
         { key: 'category', from: 'inventory', label: 'Category' },
-        { key: 'price', from: 'inventory', label: 'Price', render: (v) => formatCurrency(v) },
+        { key: 'price', from: 'inventory', label: 'Selling price', render: (v) => formatCurrency(v) },
+        { key: 'cost', from: 'inventory', label: 'Actual cost', render: (v) => formatCurrency(v ?? 0) },
+        { key: 'mrp', from: 'inventory', label: 'MRP', render: (v) => formatCurrency(v ?? 0) },
         {
           key: 'stockQty',
           from: 'inventory',

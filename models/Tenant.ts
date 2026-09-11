@@ -11,6 +11,20 @@ export interface IBrandingSettings {
   email?: string
 }
 
+export interface IInvoiceDisplaySettings {
+  showCompanyName: boolean
+  showAddress: boolean
+  showGstNumber: boolean
+  showLogo: boolean
+  showContactDetails: boolean
+  showCustomerDetails: boolean
+  showItemTax: boolean
+  showTotals: boolean
+  showNotes: boolean
+  showPaymentTerms: boolean
+  showFooter: boolean
+}
+
 export interface ITenant extends Document {
   slug: string
   name: string
@@ -22,6 +36,7 @@ export interface ITenant extends Document {
     taxRate: number
     currency: string
     branding?: IBrandingSettings
+    invoiceDisplay?: Partial<IInvoiceDisplaySettings>
   }
   invoiceCounter: number
   purchaseOrderCounter: number
@@ -50,6 +65,19 @@ const TenantSchema = new Schema<ITenant>(
         invoiceFooter: String,
         phone: String,
         email: String,
+      },
+      invoiceDisplay: {
+        showCompanyName: { type: Boolean, default: true },
+        showAddress: { type: Boolean, default: true },
+        showGstNumber: { type: Boolean, default: true },
+        showLogo: { type: Boolean, default: true },
+        showContactDetails: { type: Boolean, default: true },
+        showCustomerDetails: { type: Boolean, default: true },
+        showItemTax: { type: Boolean, default: true },
+        showTotals: { type: Boolean, default: true },
+        showNotes: { type: Boolean, default: true },
+        showPaymentTerms: { type: Boolean, default: true },
+        showFooter: { type: Boolean, default: true },
       },
     },
     invoiceCounter: { type: Number, default: 0 },

@@ -26,6 +26,7 @@ export interface IInvoice extends Document {
   status: InvoiceStatus
   razorpayOrderId?: string
   inventoryDeductedAt?: Date
+  refundedAt?: Date
   dueDate?: Date
   notes?: string
   createdAt: Date
@@ -68,6 +69,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     },
     razorpayOrderId: String,
     inventoryDeductedAt: Date,
+      refundedAt: Date,
     dueDate: Date,
     notes: String,
   },

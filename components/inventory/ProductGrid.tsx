@@ -49,8 +49,16 @@ export function ProductGrid({ products, isLoading, onEdit, onDelete }: ProductGr
               <span className="font-medium">{product.category || 'Uncategorized'}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-500">Price</span>
+              <span className="text-gray-500">Selling price</span>
               <span className="font-semibold text-gray-900">{formatCurrency(product.price)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">Actual cost</span>
+              <span>{formatCurrency(product.cost ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-500">MRP</span>
+              <span>{formatCurrency(product.mrp ?? 0)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-gray-500">Stock</span>

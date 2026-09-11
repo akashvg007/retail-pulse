@@ -13,10 +13,16 @@ export type PurchasePaymentStatus = 'unpaid' | 'partially_paid' | 'paid'
 export interface PurchaseOrderItem {
   productId?: mongoose.Types.ObjectId
   name: string
+  hsnCode: string
   qty: number
   receivedQty: number
   returnedQty: number
   unitCost: number
+  discountPercentage: number
+  discountAmount: number
+  mrp: number
+  mrpDiscount: number
+  price: number
   taxRate: number
   total: number
 }
@@ -25,6 +31,9 @@ export interface IPurchaseOrder extends Document {
   tenantId: mongoose.Types.ObjectId
   poNo: string
   supplierId: mongoose.Types.ObjectId
+  invoiceNo: string
+  invoiceDate: Date
+  paymentTerms: string
   supplierSnapshot: {
     code: string
     name: string
@@ -65,10 +74,16 @@ const PurchaseOrderItemSchema = new Schema<PurchaseOrderItem>(
   {
     productId: { type: Schema.Types.ObjectId, ref: 'Product' },
     name: { type: String, required: true, trim: true },
+    hsnCode: { type: String, default: '', trim: true },
     qty: { type: Number, required: true, min: 1 },
     receivedQty: { type: Number, default: 0, min: 0 },
     returnedQty: { type: Number, default: 0, min: 0 },
     unitCost: { type: Number, required: true, min: 0 },
+    discountPercentage: { type: Number, default: 0, min: 0, max: 100 },
+    discountAmount: { type: Number, default: 0, min: 0 },
+    mrp: { type: Number, default: 0, min: 0 },
+    mrpDiscount: { type: Number, default: 0, min: 0, max: 100 },
+    price: { type: Number, default: 0, min: 0 },
     taxRate: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
   },
@@ -80,6 +95,9 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     poNo: { type: String, required: true, trim: true },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
+    invoiceNo: { type: String, required: true, trim: true },
+    invoiceDate: { type: Date, required: true },
+    paymentTerms: { type: String, required: true, default: 'Cash', trim: true },
     supplierSnapshot: {
       code: { type: String, required: true },
       name: { type: String, required: true },

@@ -7,8 +7,8 @@ import { Supplier } from '@/models/Supplier'
 import { Tenant } from '@/models/Tenant'
 import { generatePurchaseOrderNo } from '@/lib/utils'
 
-function computeLineTotal(qty: number, unitCost: number, taxRate: number) {
-  const base = qty * unitCost
+function computeLineTotal(qty: number, unitCost: number, discountAmount: number, taxRate: number) {
+  const base = Math.max(0, qty * unitCost - discountAmount)
   return base + (base * taxRate) / 100
 }
 
@@ -67,20 +67,29 @@ export async function POST(req: NextRequest) {
   }
 
   const items = parsed.data.items.map((item) => {
-    const total = computeLineTotal(item.qty, item.unitCost, item.taxRate)
+    const lineValue = item.qty * item.unitCost
+    const discountAmount = item.discountAmount || (lineValue * item.discountPercentage) / 100
+    const discountPercentage = lineValue > 0 ? (discountAmount / lineValue) * 100 : 0
+    const total = computeLineTotal(item.qty, item.unitCost, discountAmount, item.taxRate)
     return {
       productId: item.productId || undefined,
       name: item.name,
+      hsnCode: item.hsnCode,
       qty: item.qty,
       receivedQty: 0,
       returnedQty: 0,
       unitCost: item.unitCost,
+      discountPercentage,
+      discountAmount,
+      mrp: item.mrp,
+      mrpDiscount: item.mrpDiscount,
+      price: item.price,
       taxRate: item.taxRate,
       total,
     }
   })
 
-  const subtotal = items.reduce((sum, item) => sum + item.qty * item.unitCost, 0)
+  const subtotal = items.reduce((sum, item) => sum + Math.max(0, item.qty * item.unitCost - item.discountAmount), 0)
   const total = items.reduce((sum, item) => sum + item.total, 0)
   const taxAmount = total - subtotal
 
@@ -97,6 +106,9 @@ export async function POST(req: NextRequest) {
     tenantId: ctx.tenantId,
     poNo: generatePurchaseOrderNo(tenant.purchaseOrderCounter),
     supplierId: supplier._id,
+    invoiceNo: parsed.data.invoiceNo,
+    invoiceDate: new Date(parsed.data.invoiceDate),
+    paymentTerms: parsed.data.paymentTerms,
     supplierSnapshot: {
       code: supplier.code,
       name: supplier.name,

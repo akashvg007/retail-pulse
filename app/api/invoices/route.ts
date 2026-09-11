@@ -18,9 +18,17 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, Number(searchParams.get('page') ?? 1))
   const limit = Math.min(100, Number(searchParams.get('limit') ?? 20))
   const status = searchParams.get('status')
+  const search = searchParams.get('search')?.trim()
 
   const filter: Record<string, unknown> = { tenantId: ctx.tenantId }
   if (status) filter.status = status
+  if (search) {
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    filter.$or = [
+      { invoiceNo: { $regex: escapedSearch, $options: 'i' } },
+      { 'customerSnapshot.name': { $regex: escapedSearch, $options: 'i' } },
+    ]
+  }
 
   const [data, total] = await Promise.all([
     Invoice.find(filter)

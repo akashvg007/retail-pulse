@@ -15,6 +15,7 @@ export interface InvoiceItem {
 }
 
 export interface InvoiceData {
+  _id?: string;
   invoiceNo: string;
   businessName?: string;
   createdAt: string;
@@ -38,6 +39,30 @@ export interface InvoiceData {
   discount: number;
   total: number;
   notes?: string;
+  tenantBranding?: {
+    name?: string;
+    businessLogo?: string;
+    address?: string;
+    gstNumber?: string;
+    phone?: string;
+    email?: string;
+    paymentTerms?: string;
+    invoiceFooter?: string;
+    invoiceDisplay?: Partial<Record<
+      | "showCompanyName"
+      | "showAddress"
+      | "showGstNumber"
+      | "showLogo"
+      | "showContactDetails"
+      | "showCustomerDetails"
+      | "showItemTax"
+      | "showTotals"
+      | "showNotes"
+      | "showPaymentTerms"
+      | "showFooter",
+      boolean
+    >>;
+  };
 }
 
 export interface CustomerSelectionProps {

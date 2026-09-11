@@ -35,9 +35,14 @@ export async function PATCH(
 
   await connectDB()
   const { id } = await params
+  const updates = {
+    ...parsed.data,
+    ...(parsed.data.gstRate !== undefined ? { taxRate: parsed.data.gstRate } : {}),
+    ...(parsed.data.taxRate !== undefined && parsed.data.gstRate === undefined ? { gstRate: parsed.data.taxRate } : {}),
+  }
   const product = await Product.findOneAndUpdate(
     { _id: id, tenantId: ctx.tenantId },
-    parsed.data,
+    updates,
     { new: true }
   ).lean()
   if (!product) return NextResponse.json({ error: 'Not found' }, { status: 404 })

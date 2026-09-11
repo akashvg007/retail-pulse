@@ -93,18 +93,22 @@ export function ProductModal({ open, editing, onClose, onSuccess }: ProductModal
           <Input label="SKU" error={errors.sku?.message} {...register('sku')} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="HSN code" error={errors.hsnCode?.message} {...register('hsnCode')} />
+          <Input label="GST (%)" type="number" step="0.01" error={errors.gstRate?.message} {...register('gstRate', { valueAsNumber: true })} />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
-            label="Price (₹)"
+            label="Selling price (₹)"
             type="number"
             step="0.01"
             error={errors.price?.message}
             {...register('price', { valueAsNumber: true })}
           />
-          <Input label="Cost (₹)" type="number" step="0.01" {...register('cost', { valueAsNumber: true })} />
+          <Input label="Actual cost (₹)" type="number" step="0.01" {...register('cost', { valueAsNumber: true })} />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="MRP (₹)" type="number" step="0.01" error={errors.mrp?.message} {...register('mrp', { valueAsNumber: true })} />
           <Input label="Stock qty" type="number" {...register('stockQty', { valueAsNumber: true })} />
-          <Input label="Tax rate (%)" type="number" {...register('taxRate', { valueAsNumber: true })} />
         </div>
         <Input label="Category" {...register('category')} />
         <ModalFooter

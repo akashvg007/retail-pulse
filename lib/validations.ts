@@ -17,13 +17,16 @@ export const productSchema = z.object({
   tenantId: z.string().optional(),
   name: z.string().min(1, 'Name is required'),
   sku: z.string().min(1, 'SKU is required'),
+  hsnCode: z.string().trim().min(1, 'HSN code is required'),
   description: z.string().optional(),
   images: z.array(z.string()).optional().default([]),
   price: z.number({ error: 'Price must be a number' }).min(0),
   cost: z.number().min(0).optional().default(0),
+  mrp: z.number().min(0).optional().default(0),
   category: z.string().optional().default('General'),
   stockQty: z.number().int().min(0).optional().default(0),
   taxRate: z.number().min(0).max(100).optional().default(18),
+  gstRate: z.number().min(0).max(100).optional().default(18),
 })
 
 export const customerSchema = z.object({
@@ -69,14 +72,23 @@ export const invoiceSchema = z.object({
 export const purchaseOrderItemSchema = z.object({
   productId: z.string().optional(),
   name: z.string().min(1, 'Item name is required'),
+  hsnCode: z.string().trim().optional().default(''),
   qty: z.number().int().min(1, 'Quantity must be at least 1'),
   unitCost: z.number().min(0, 'Unit cost must be zero or more'),
+  discountPercentage: z.number().min(0).max(100).default(0),
+  discountAmount: z.number().min(0).default(0),
+  mrp: z.number().min(0).default(0),
+  mrpDiscount: z.number().min(0).max(100).default(0),
+  price: z.number().min(0).default(0),
   taxRate: z.number().min(0).max(100).default(0),
   total: z.number().min(0, 'Line total must be zero or more'),
 })
 
 export const purchaseOrderSchema = z.object({
   supplierId: z.string().min(1, 'Supplier is required'),
+  invoiceNo: z.string().trim().min(1, 'Invoice number is required'),
+  invoiceDate: z.string().min(1, 'Invoice date is required'),
+  paymentTerms: z.string().trim().min(1).default('Cash'),
   items: z.array(purchaseOrderItemSchema).min(1, 'At least one purchase item is required'),
   expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),

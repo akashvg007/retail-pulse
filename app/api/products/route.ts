@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
       { sku: { $regex: search, $options: 'i' } },
+      { hsnCode: { $regex: search, $options: 'i' } },
       { category: { $regex: search, $options: 'i' } },
     ]
   }
@@ -69,6 +70,10 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   await connectDB()
-  const product = await Product.create({ ...parsed.data, tenantId: ctx.tenantId })
+  const product = await Product.create({
+    ...parsed.data,
+    taxRate: parsed.data.gstRate,
+    tenantId: ctx.tenantId,
+  })
   return NextResponse.json({ data: product }, { status: 201 })
 }

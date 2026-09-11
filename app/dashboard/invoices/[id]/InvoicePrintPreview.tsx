@@ -5,6 +5,13 @@ import Image from "next/image";
 type InvoiceBranding = {
   name?: string;
   businessLogo?: string;
+  address?: string;
+  gstNumber?: string;
+  phone?: string;
+  email?: string;
+  paymentTerms?: string;
+  invoiceFooter?: string;
+  invoiceDisplay?: Record<string, boolean>;
 };
 
 export default function InvoicePrintPreview({
@@ -15,7 +22,22 @@ export default function InvoicePrintPreview({
   template: InvoicePrintTemplate;
 }) {
   const businessName = invoice.tenantBranding?.name || invoice.businessName?.trim() || "Your Shop";
-  const logo = invoice.tenantBranding?.businessLogo;
+  const branding = invoice.tenantBranding;
+  const display = {
+    showCompanyName: true,
+    showAddress: true,
+    showGstNumber: true,
+    showLogo: true,
+    showContactDetails: true,
+    showCustomerDetails: true,
+    showItemTax: true,
+    showTotals: true,
+    showNotes: true,
+    showPaymentTerms: true,
+    showFooter: true,
+    ...branding?.invoiceDisplay,
+  };
+  const logo = display.showLogo ? branding?.businessLogo : undefined;
   const customerName =
     invoice.customerId?.name ?? invoice.customerSnapshot?.name;
   const customerEmail =
@@ -39,9 +61,12 @@ export default function InvoicePrintPreview({
                 />
               )}
               <div>
-                <p className="text-lg font-semibold text-gray-900">
-              {businessName}
-            </p>
+                {display.showCompanyName && <p className="text-lg font-semibold text-gray-900">{businessName}</p>}
+                {display.showAddress && branding?.address && <p className="max-w-xs text-sm text-gray-600">{branding.address}</p>}
+                {display.showGstNumber && branding?.gstNumber && <p className="text-sm text-gray-600">GST: {branding.gstNumber}</p>}
+                {display.showContactDetails && (branding?.phone || branding?.email) && (
+                  <p className="text-sm text-gray-600">{[branding.phone, branding.email].filter(Boolean).join(" | ")}</p>
+                )}
                 <p className="text-2xl font-bold text-gray-900">Invoice</p>
                 <p className="text-sm text-gray-500 mt-1">{invoice.invoiceNo}</p>
               </div>
@@ -53,7 +78,7 @@ export default function InvoicePrintPreview({
             </div>
         </div>
         </div>
-        <div className="py-4 text-sm text-gray-700">
+        {display.showCustomerDetails && <div className="py-4 text-sm text-gray-700">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Bill To
           </p>
@@ -62,7 +87,7 @@ export default function InvoicePrintPreview({
           </p>
           {customerEmail && <p>{customerEmail}</p>}
           {customerGst && <p>GST: {customerGst}</p>}
-              </div>
+              </div>}
 
         <table className="w-full text-sm border-y border-gray-200">
           <thead>
@@ -70,7 +95,7 @@ export default function InvoicePrintPreview({
               <th className="py-2 font-medium">Item</th>
               <th className="py-2 font-medium text-right">Qty</th>
               <th className="py-2 font-medium text-right">Price</th>
-              <th className="py-2 font-medium text-right">Tax</th>
+              {display.showItemTax && <th className="py-2 font-medium text-right">Tax</th>}
               <th className="py-2 font-medium text-right">Total</th>
             </tr>
           </thead>
@@ -82,7 +107,7 @@ export default function InvoicePrintPreview({
                 <td className="py-2 text-right">
                   {formatCurrency(item.price)}
                 </td>
-                <td className="py-2 text-right">{item.taxRate}%</td>
+                {display.showItemTax && <td className="py-2 text-right">{item.taxRate}%</td>}
                 <td className="py-2 text-right font-medium">
                   {formatCurrency(item.total)}
                 </td>
@@ -91,7 +116,7 @@ export default function InvoicePrintPreview({
           </tbody>
         </table>
 
-        <div className="ml-auto mt-4 w-64 text-sm">
+        {display.showTotals && <div className="ml-auto mt-4 w-64 text-sm">
           <div className="flex justify-between text-gray-700">
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subtotal)}</span>
@@ -112,14 +137,20 @@ export default function InvoicePrintPreview({
             <span>Total</span>
             <span>{formatCurrency(invoice.total)}</span>
       </div>
-    </div>
+      </div>}
 
-        {invoice.notes && (
+      {display.showNotes && invoice.notes && (
           <div className="mt-5 text-sm text-gray-600">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
               Notes
             </p>
             <p className="mt-1">{invoice.notes}</p>
+          </div>
+        )}
+        {display.showFooter && (branding?.paymentTerms || branding?.invoiceFooter) && (
+          <div className="mt-5 border-t border-gray-200 pt-3 text-sm text-gray-600">
+            {display.showPaymentTerms && branding.paymentTerms && <p>Payment Terms: {branding.paymentTerms}</p>}
+            {branding.invoiceFooter && <p className="mt-2">{branding.invoiceFooter}</p>}
           </div>
         )}
       </div>
@@ -141,9 +172,9 @@ export default function InvoicePrintPreview({
               />
             )}
             <div>
-              <p className="text-base font-semibold text-gray-900">
-            {businessName}
-          </p>
+                {display.showCompanyName && <p className="text-base font-semibold text-gray-900">{businessName}</p>}
+                {display.showAddress && branding?.address && <p className="text-xs text-gray-600">{branding.address}</p>}
+                {display.showGstNumber && branding?.gstNumber && <p className="text-xs text-gray-600">GST: {branding.gstNumber}</p>}
               <h2 className="text-xl font-bold tracking-tight">
                 {invoice.invoiceNo}
               </h2>
@@ -154,18 +185,18 @@ export default function InvoicePrintPreview({
           </p>
             </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-600">
+        {display.showCustomerDetails && <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-600">
           <div>
             <p className="font-semibold text-gray-900">Customer</p>
             <p>{customerName || "Walk-in customer"}</p>
             {customerEmail && <p>{customerEmail}</p>}
-              </div>
+          </div>
           <div className="text-right">
             {invoice.dueDate && <p>Due: {formatDate(invoice.dueDate)}</p>}
             {invoice.staffName && <p>Staff: {invoice.staffName}</p>}
             <p>Status: {invoice.status}</p>
           </div>
-              </div>
+        </div>}
 
         <table className="mt-4 w-full text-xs">
           <thead>
@@ -188,7 +219,7 @@ export default function InvoicePrintPreview({
           </tbody>
         </table>
 
-        <div className="mt-3 ml-auto w-48 text-xs">
+        {display.showTotals && <div className="mt-3 ml-auto w-48 text-xs">
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subtotal)}</span>
@@ -209,7 +240,13 @@ export default function InvoicePrintPreview({
             <span>Total</span>
             <span>{formatCurrency(invoice.total)}</span>
       </div>
-    </div>
+        </div>}
+        {display.showFooter && (branding?.paymentTerms || branding?.invoiceFooter) && (
+          <div className="mt-3 border-t border-gray-300 pt-2 text-xs text-gray-600">
+            {display.showPaymentTerms && branding.paymentTerms && <p>Payment Terms: {branding.paymentTerms}</p>}
+            {branding.invoiceFooter && <p className="mt-1">{branding.invoiceFooter}</p>}
+          </div>
+        )}
       </div>
   );
 }
@@ -223,9 +260,9 @@ export default function InvoicePrintPreview({
               <Image src={logo} alt="Logo" width={120} height={64} className="max-h-16 w-auto object-contain" />
             </div>
           )}
-          <p className="text-center text-sm font-bold uppercase">
-            {businessName}
-          </p>
+          {display.showCompanyName && <p className="text-center text-sm font-bold uppercase">{businessName}</p>}
+          {display.showAddress && branding?.address && <p className="text-center">{branding.address}</p>}
+          {display.showGstNumber && branding?.gstNumber && <p className="text-center">GST: {branding.gstNumber}</p>}
           <p className="text-center text-base font-bold">INVOICE</p>
           <p className="text-center">{invoice.invoiceNo}</p>
           <p className="mt-1 text-center">{formatDate(invoice.createdAt)}</p>
@@ -233,9 +270,11 @@ export default function InvoicePrintPreview({
 
           <div className="my-2 border-t border-dashed border-black" />
 
-          <p className="font-bold">Bill To</p>
-          <p>{customerName || "Walk-in customer"}</p>
-          {customerGst && <p>GST: {customerGst}</p>}
+          {display.showCustomerDetails && <>
+            <p className="font-bold">Bill To</p>
+            <p>{customerName || "Walk-in customer"}</p>
+            {customerGst && <p>GST: {customerGst}</p>}
+          </>}
 
           <div className="my-2 border-t border-dashed border-black" />
 
@@ -248,7 +287,7 @@ export default function InvoicePrintPreview({
                 </span>
                 <span>{formatCurrency(item.total)}</span>
               </div>
-              {item.taxRate > 0 && (
+              {display.showItemTax && item.taxRate > 0 && (
                 <p className="text-[10px]">Tax: {item.taxRate}%</p>
               )}
             </div>
@@ -256,7 +295,7 @@ export default function InvoicePrintPreview({
 
           <div className="my-2 border-t border-dashed border-black" />
 
-          <div className="space-y-0.5">
+          {display.showTotals && <div className="space-y-0.5">
             <div className="flex justify-between">
               <span>Subtotal</span>
               <span>{formatCurrency(invoice.subtotal)}</span>
@@ -277,13 +316,20 @@ export default function InvoicePrintPreview({
               <span>Total</span>
               <span>{formatCurrency(invoice.total)}</span>
             </div>
-          </div>
+          </div>}
 
-          {invoice.notes && (
+          {display.showNotes && invoice.notes && (
             <>
               <div className="my-2 border-t border-dashed border-black" />
               <p className="font-bold">Notes</p>
               <p className="whitespace-pre-wrap">{invoice.notes}</p>
+            </>
+          )}
+          {display.showFooter && (branding?.paymentTerms || branding?.invoiceFooter) && (
+            <>
+              <div className="my-2 border-t border-dashed border-black" />
+              {display.showPaymentTerms && branding.paymentTerms && <p>Payment Terms: {branding.paymentTerms}</p>}
+              {branding.invoiceFooter && <p className="mt-1 whitespace-pre-wrap">{branding.invoiceFooter}</p>}
             </>
           )}
         </div>
@@ -300,7 +346,9 @@ export default function InvoicePrintPreview({
           </div>
         )}
         <div className="text-center">
-          <p className="font-bold uppercase">{businessName}</p>
+          {display.showCompanyName && <p className="font-bold uppercase">{businessName}</p>}
+          {display.showAddress && branding?.address && <p>{branding.address}</p>}
+          {display.showGstNumber && branding?.gstNumber && <p>GST: {branding.gstNumber}</p>}
           <p className="font-bold">{invoice.invoiceNo}</p>
           <p>{formatDate(invoice.createdAt)}</p>
         </div>
@@ -323,16 +371,16 @@ export default function InvoicePrintPreview({
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subtotal)}</span>
           </div>
-          {invoice.taxAmount > 0 && (
+          {display.showTotals && invoice.taxAmount > 0 && (
             <div className="flex justify-between">
               <span>Tax</span>
               <span>{formatCurrency(invoice.taxAmount)}</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-[11px]">
+          {display.showTotals && <div className="flex justify-between font-bold text-[11px]">
             <span>Total</span>
             <span>{formatCurrency(invoice.total)}</span>
-          </div>
+          </div>}
         </div>
       </div>
     </div>

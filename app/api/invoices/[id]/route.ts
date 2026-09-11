@@ -6,18 +6,45 @@ import { Invoice } from '@/models/Invoice'
 import { deductInventoryForInvoiceSale } from '@/lib/inventory-sale'
 
 function withBusinessName<T extends { tenantId?: unknown }>(invoice: T) {
-  const tenantName =
+  const tenant = (
     invoice &&
     typeof invoice.tenantId === 'object' &&
-    invoice.tenantId !== null &&
-    'name' in invoice.tenantId &&
-    typeof (invoice.tenantId as { name?: unknown }).name === 'string'
-      ? (invoice.tenantId as { name: string }).name
-      : undefined
+    invoice.tenantId !== null
+      ? invoice.tenantId
+      : null
+  ) as {
+      name?: string
+      settings?: {
+        logo?: string
+        address?: string
+        gstNumber?: string
+        branding?: {
+          businessLogo?: string
+          phone?: string
+          email?: string
+          paymentTerms?: string
+          invoiceFooter?: string
+        }
+        invoiceDisplay?: Record<string, boolean>
+      }
+    } | null
+
+  const settings = tenant?.settings
 
   return {
     ...invoice,
-    businessName: tenantName,
+    businessName: tenant?.name,
+    tenantBranding: {
+      name: tenant?.name,
+      businessLogo: settings?.branding?.businessLogo || settings?.logo,
+      address: settings?.address,
+      gstNumber: settings?.gstNumber,
+      phone: settings?.branding?.phone,
+      email: settings?.branding?.email,
+      paymentTerms: settings?.branding?.paymentTerms,
+      invoiceFooter: settings?.branding?.invoiceFooter,
+      invoiceDisplay: settings?.invoiceDisplay,
+    },
   }
 }
 
@@ -34,7 +61,7 @@ export async function GET(
   const { id } = await params
   const invoice = await Invoice.findOne({ _id: id, tenantId: ctx.tenantId })
     .populate('customerId', 'name email phone gstNumber')
-    .populate('tenantId', 'name')
+    .populate('tenantId', 'name settings')
     .lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json({ data: withBusinessName(invoice) })
@@ -99,7 +126,7 @@ export async function PATCH(
     { new: true }
   )
     .populate('customerId', 'name email phone gstNumber')
-    .populate('tenantId', 'name')
+    .populate('tenantId', 'name settings')
     .lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

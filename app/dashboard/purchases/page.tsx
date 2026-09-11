@@ -29,16 +29,34 @@ interface SupplierOption {
 }
 
 interface PurchaseItemForm {
+  productId?: string
   name: string
+  hsnCode: string
   qty: number
   unitCost: number
+  discountPercentage: number
+  discountAmount: number
   taxRate: number
+  mrp: number
+  mrpDiscount: number
+  price: number
+}
+
+interface ProductOption {
+  _id: string
+  name: string
+  hsnCode?: string
+  gstRate?: number
+  taxRate?: number
 }
 
 interface PurchaseRow {
   _id: string
   poNo: string
   supplierSnapshot: { name: string; code: string }
+  invoiceNo: string
+  invoiceDate: string
+  paymentTerms: string
   total: number
   subtotal: number
   taxAmount: number
@@ -47,7 +65,7 @@ interface PurchaseRow {
   createdAt: string
   expectedDeliveryDate?: string
   inventoryPostedAt?: string
-  items: Array<{ name: string; qty: number; unitCost?: number; taxRate?: number; total?: number }>
+  items: Array<{ name: string; hsnCode?: string; qty: number; unitCost?: number; discountPercentage?: number; discountAmount?: number; taxRate?: number; mrp?: number; mrpDiscount?: number; price?: number; total?: number }>
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -60,9 +78,12 @@ export default function PurchasesPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [supplierId, setSupplierId] = useState('')
+  const [invoiceNo, setInvoiceNo] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState('')
+  const [paymentTerms, setPaymentTerms] = useState('Cash')
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('')
   const [notes, setNotes] = useState('')
-  const [items, setItems] = useState<PurchaseItemForm[]>([{ name: '', qty: 1, unitCost: 0, taxRate: 0 }])
+  const [items, setItems] = useState<PurchaseItemForm[]>([createEmptyItem()])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [actioningId, setActioningId] = useState<string | null>(null)
@@ -87,8 +108,10 @@ export default function PurchasesPage() {
 
   const { data, isLoading } = useSWR(purchasesQuery, fetcher)
   const { data: suppliersResponse } = useSWR('/api/suppliers?limit=100', fetcher)
+  const { data: productsResponse } = useSWR('/api/products?limit=500', fetcher)
   const purchases = useMemo(() => ((data?.data ?? []) as PurchaseRow[]), [data?.data])
   const suppliers = (suppliersResponse?.data ?? []) as SupplierOption[]
+  const products = (productsResponse?.data ?? []) as ProductOption[]
   const total = Number(data?.total ?? 0)
   const totalPages = Math.max(1, Math.ceil(total / 10))
   const pageNumbers = useMemo(() => {
@@ -109,9 +132,12 @@ export default function PurchasesPage() {
 
   function resetForm() {
     setSupplierId('')
+    setInvoiceNo('')
+    setInvoiceDate('')
+    setPaymentTerms('Cash')
     setExpectedDeliveryDate('')
     setNotes('')
-    setItems([{ name: '', qty: 1, unitCost: 0, taxRate: 0 }])
+    setItems([createEmptyItem()])
     setOcrBusy(false)
     setOcrProgress(0)
     setOcrStage('Preparing OCR engine')
@@ -132,20 +158,42 @@ export default function PurchasesPage() {
       if (itemIndex !== index) return item
       if (field === 'name') return { ...item, name: value }
       const numericValue = Number(value)
-      return { ...item, [field]: Number.isNaN(numericValue) ? 0 : numericValue }
+      const nextValue = Number.isNaN(numericValue) ? 0 : numericValue
+      if (field === 'discountPercentage') {
+        return { ...item, discountPercentage: nextValue, discountAmount: item.qty * item.unitCost * nextValue / 100 }
+      }
+      if (field === 'discountAmount') {
+        const lineValue = item.qty * item.unitCost
+        return { ...item, discountAmount: nextValue, discountPercentage: lineValue > 0 ? nextValue / lineValue * 100 : 0 }
+      }
+      if (field === 'mrp') {
+        return { ...item, mrp: nextValue, price: nextValue * (1 - item.mrpDiscount / 100) }
+      }
+      if (field === 'mrpDiscount') {
+        return { ...item, mrpDiscount: nextValue, price: item.mrp * (1 - nextValue / 100) }
+      }
+      if (field === 'unitCost') {
+        return { ...item, unitCost: nextValue, discountAmount: item.qty * nextValue * item.discountPercentage / 100 }
+      }
+      if (field === 'qty') {
+        return { ...item, qty: nextValue, discountAmount: nextValue * item.unitCost * item.discountPercentage / 100 }
+      }
+      return { ...item, [field]: nextValue }
     }))
   }
 
   function addItem() {
-    setItems((current) => [...current, { name: '', qty: 1, unitCost: 0, taxRate: 0 }])
+    setItems((current) => [...current, createEmptyItem()])
   }
 
   function applyOcrToForm(data: OcrExtractedData) {
     if (data.billDate) {
+      setInvoiceDate(data.billDate)
       setExpectedDeliveryDate(data.billDate)
     }
 
     if (data.billNumber) {
+      setInvoiceNo(data.billNumber)
       setNotes((previous) => {
         const prefix = previous?.trim() ? `${previous.trim()}\n` : ''
         return `${prefix}Bill: ${data.billNumber}`
@@ -154,10 +202,17 @@ export default function PurchasesPage() {
 
     if (data.items.length > 0) {
       setItems(data.items.map((item) => ({
+        productId: undefined,
         name: item.name,
+        hsnCode: '',
         qty: item.qty,
         unitCost: item.unitCost,
+        discountPercentage: 0,
+        discountAmount: 0,
         taxRate: item.taxRate,
+        mrp: 0,
+        mrpDiscount: 0,
+        price: item.unitCost,
       })))
     }
 
@@ -253,12 +308,41 @@ export default function PurchasesPage() {
     setItems((current) => current.length === 1 ? current : current.filter((_, itemIndex) => itemIndex !== index))
   }
 
+  function updateProductFields(index: number, field: 'name' | 'hsnCode', value: string) {
+    const normalizedValue = value.trim().toLowerCase()
+    const product = products.find((candidate) => {
+      const candidateValue = field === 'name' ? candidate.name : candidate.hsnCode
+      return candidateValue?.trim().toLowerCase() === normalizedValue
+    })
+
+    setItems((current) => current.map((item, itemIndex) => {
+      if (itemIndex !== index) return item
+      if (!product) {
+        return field === 'name'
+          ? { ...item, name: value, productId: undefined, hsnCode: '', taxRate: 0 }
+          : { ...item, hsnCode: value, productId: undefined, name: '', taxRate: 0 }
+      }
+
+      const gstRate = product.gstRate ?? product.taxRate ?? 0
+      return {
+        ...item,
+        productId: product._id,
+        name: product.name,
+        hsnCode: product.hsnCode ?? '',
+        taxRate: gstRate,
+      }
+    }))
+  }
+
   async function createPurchaseOrder() {
     setSaving(true)
     setError(null)
     try {
       const payload = {
         supplierId,
+        invoiceNo,
+        invoiceDate,
+        paymentTerms,
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes: notes || undefined,
         ocrMeta: ocrData
@@ -271,7 +355,7 @@ export default function PurchasesPage() {
           : undefined,
         items: items.map((item) => ({
           ...item,
-          total: item.qty * item.unitCost + (item.qty * item.unitCost * item.taxRate) / 100,
+          total: calculateLineTotal(item),
         })),
       }
 
@@ -515,7 +599,12 @@ export default function PurchasesPage() {
         </div>
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Create purchase order">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Create purchase order"
+        className="min-w-[75vw] max-w-[100vw]"
+      >
         <div className="space-y-4">
           {billOcrEnabled ? (
             <BillImageInput
@@ -585,6 +674,12 @@ export default function PurchasesPage() {
             </select>
           </div>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Input label="Invoice no" value={invoiceNo} onChange={(event) => setInvoiceNo(event.target.value)} required />
+            <Input label="Invoice date" type="date" value={invoiceDate} onChange={(event) => setInvoiceDate(event.target.value)} required />
+            <Input label="Payment terms" value={paymentTerms} onChange={(event) => setPaymentTerms(event.target.value)} />
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
               label="Expected delivery"
@@ -606,40 +701,34 @@ export default function PurchasesPage() {
               <Button type="button" size="sm" variant="secondary" onClick={addItem}>Add item</Button>
             </div>
             {items.map((item, index) => {
-              const lineTotal = item.qty * item.unitCost + (item.qty * item.unitCost * item.taxRate) / 100
+              const lineTotal = calculateLineTotal(item)
               return (
                 <div key={`item-${index}`} className="rounded-lg border border-gray-200 p-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Input
-                      label="Item name"
-                      value={item.name}
-                      onChange={(event) => updateItem(index, 'name', event.target.value)}
-                    />
-                    <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
                       <Input
-                        label="Qty"
-                        type="number"
-                        min="1"
-                        value={item.qty}
-                        onChange={(event) => updateItem(index, 'qty', event.target.value)}
-                      />
-                      <Input
-                        label="Unit cost"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unitCost}
-                        onChange={(event) => updateItem(index, 'unitCost', event.target.value)}
-                      />
-                      <Input
-                        label="Tax %"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.taxRate}
-                        onChange={(event) => updateItem(index, 'taxRate', event.target.value)}
+                        label="Product name"
+                        list="purchase-product-names"
+                        value={item.name}
+                        onChange={(event) => updateProductFields(index, 'name', event.target.value)}
                       />
                     </div>
+                    <div>
+                      <Input
+                        label="HSN code"
+                        list="purchase-product-hsn"
+                        value={item.hsnCode}
+                        onChange={(event) => updateProductFields(index, 'hsnCode', event.target.value)}
+                      />
+                    </div>
+                    <Input label="Quantity" type="number" min="1" value={item.qty} onChange={(event) => updateItem(index, 'qty', event.target.value)} />
+                    <Input label="Purchase rate" type="number" min="0" step="0.01" value={item.unitCost} onChange={(event) => updateItem(index, 'unitCost', event.target.value)} />
+                    <Input label="Tax %" type="number" min="0" step="0.01" value={item.taxRate} onChange={(event) => updateItem(index, 'taxRate', event.target.value)} />
+                    <Input label="Discount %" type="number" min="0" max="100" step="0.01" value={item.discountPercentage} onChange={(event) => updateItem(index, 'discountPercentage', event.target.value)} />
+                    <Input label="Discount amount" type="number" min="0" step="0.01" value={item.discountAmount} onChange={(event) => updateItem(index, 'discountAmount', event.target.value)} />
+                    <Input label="MRP" type="number" min="0" step="0.01" value={item.mrp} onChange={(event) => updateItem(index, 'mrp', event.target.value)} />
+                    <Input label="MRP discount %" type="number" min="0" max="100" step="0.01" value={item.mrpDiscount} onChange={(event) => updateItem(index, 'mrpDiscount', event.target.value)} />
+                    <Input label="Price" type="number" value={item.price.toFixed(2)} readOnly className="bg-gray-50" />
                   </div>
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span className="text-gray-500">Line total</span>
@@ -655,8 +744,15 @@ export default function PurchasesPage() {
             })}
           </div>
 
+          <datalist id="purchase-product-names">
+            {products.map((product) => <option key={`name-${product._id}`} value={product.name} />)}
+          </datalist>
+          <datalist id="purchase-product-hsn">
+            {products.filter((product) => product.hsnCode).map((product) => <option key={`hsn-${product._id}`} value={product.hsnCode} />)}
+          </datalist>
+
           <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm text-indigo-900">
-            Order total: {formatCurrency(items.reduce((sum, item) => sum + item.qty * item.unitCost + (item.qty * item.unitCost * item.taxRate) / 100, 0))}
+            Order total: {formatCurrency(items.reduce((sum, item) => sum + calculateLineTotal(item), 0))}
           </div>
 
           <ModalFooter
@@ -710,6 +806,7 @@ export default function PurchasesPage() {
                   <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-3 py-2">Item</th>
+                      <th className="px-3 py-2">HSN</th>
                       <th className="px-3 py-2">Qty</th>
                       <th className="px-3 py-2">Unit cost</th>
                       <th className="px-3 py-2">Tax %</th>
@@ -720,6 +817,7 @@ export default function PurchasesPage() {
                     {selectedPurchase.items.map((item, index) => (
                       <tr key={`view-item-${index}`}>
                         <td className="px-3 py-2 text-gray-800">{item.name}</td>
+                        <td className="px-3 py-2 text-gray-700">{item.hsnCode || '—'}</td>
                         <td className="px-3 py-2 text-gray-700">{item.qty}</td>
                         <td className="px-3 py-2 text-gray-700">{formatCurrency(item.unitCost ?? 0)}</td>
                         <td className="px-3 py-2 text-gray-700">{item.taxRate ?? 0}%</td>
@@ -832,5 +930,26 @@ function paymentStatusBadge(status: string) {
 
 function formatStatus(value: string) {
   return value.replace(/_/g, ' ')
+}
+
+function createEmptyItem(): PurchaseItemForm {
+  return {
+    productId: undefined,
+    name: '',
+    hsnCode: '',
+    qty: 1,
+    unitCost: 0,
+    discountPercentage: 0,
+    discountAmount: 0,
+    taxRate: 0,
+    mrp: 0,
+    mrpDiscount: 0,
+    price: 0,
+  }
+}
+
+function calculateLineTotal(item: PurchaseItemForm) {
+  const base = Math.max(0, item.qty * item.unitCost - item.discountAmount)
+  return base + (base * item.taxRate) / 100
 }
 

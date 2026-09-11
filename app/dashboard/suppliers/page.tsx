@@ -195,7 +195,21 @@ export default function SuppliersPage() {
           <Input label="Address" error={errors.address?.message} {...register('address')} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input label="GST Number" error={errors.gstNumber?.message} {...register('gstNumber')} />
-            <Input label="Payment terms" error={errors.paymentTerms?.message} {...register('paymentTerms')} />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="payment-terms" className="text-sm font-medium text-gray-700">
+                Payment terms
+              </label>
+              <select
+                id="payment-terms"
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                {...register('paymentTerms')}
+              >
+                <option value="">Select payment terms</option>
+                <option value="Cash">Cash</option>
+                <option value="Credit">Credit</option>
+              </select>
+              {errors.paymentTerms?.message && <p className="text-xs text-red-600">{errors.paymentTerms.message}</p>}
+            </div>
           </div>
           <Input label="Notes" error={errors.notes?.message} {...register('notes')} />
           <ModalFooter

@@ -40,18 +40,22 @@ function toString(value: unknown) {
 export function normalizeImportRow(row: Record<string, unknown>): ProductImportPayload | null {
   const name = toString(getValue(row, ['name', 'productname', 'itemname']))
   const sku = toString(getValue(row, ['sku', 'code', 'itemcode']))
+  const hsnCode = toString(getValue(row, ['hsncode', 'hsn', 'hsnnumber']))
 
-  if (!name || !sku) return null
+  if (!name || !sku || !hsnCode) return null
 
   const normalized = {
     name,
     sku,
+    hsnCode,
     description: toString(getValue(row, ['description', 'desc', 'details'])) || undefined,
     category: toString(getValue(row, ['category', 'department'])) || 'General',
     price: toNumber(getValue(row, ['price', 'unitprice']), 0),
     cost: toNumber(getValue(row, ['cost', 'unitcost']), 0),
+    mrp: toNumber(getValue(row, ['mrp', 'maximumretailprice']), 0),
     stockQty: Math.max(0, Math.floor(toNumber(getValue(row, ['stockqty', 'stock', 'qty', 'quantity']), 0))),
     taxRate: Math.max(0, Math.min(100, toNumber(getValue(row, ['taxrate', 'tax']), 18))),
+    gstRate: Math.max(0, Math.min(100, toNumber(getValue(row, ['gstrate', 'gst']), 18))),
   }
 
   const parsed = productSchema.omit({ _id: true }).safeParse(normalized)

@@ -16,6 +16,19 @@ interface SettingsForm {
   logo?: string
   taxRate: number
   currency: string
+  invoiceDisplay: {
+    showCompanyName: boolean
+    showAddress: boolean
+    showGstNumber: boolean
+    showLogo: boolean
+    showContactDetails: boolean
+    showCustomerDetails: boolean
+    showItemTax: boolean
+    showTotals: boolean
+    showNotes: boolean
+    showPaymentTerms: boolean
+    showFooter: boolean
+  }
   branding?: {
     businessLogo?: string
     primaryColor?: string
@@ -30,6 +43,9 @@ interface SettingsForm {
 
 export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
+  const [passwordSaved, setPasswordSaved] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [logoPreview, setLogoPreview] = useState<string>('')
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -40,11 +56,25 @@ export default function SettingsPage() {
       setLoading(false)
       setLogoPreview(data?.logo || '')
       return {
+        name: data?.name,
         gstNumber: data?.gstNumber,
         address: data?.address,
         logo: data?.logo,
         taxRate: data?.taxRate || 18,
         currency: data?.currency || 'INR',
+        invoiceDisplay: {
+          showCompanyName: data?.invoiceDisplay?.showCompanyName ?? true,
+          showAddress: data?.invoiceDisplay?.showAddress ?? true,
+          showGstNumber: data?.invoiceDisplay?.showGstNumber ?? true,
+          showLogo: data?.invoiceDisplay?.showLogo ?? true,
+          showContactDetails: data?.invoiceDisplay?.showContactDetails ?? true,
+          showCustomerDetails: data?.invoiceDisplay?.showCustomerDetails ?? true,
+          showItemTax: data?.invoiceDisplay?.showItemTax ?? true,
+          showTotals: data?.invoiceDisplay?.showTotals ?? true,
+          showNotes: data?.invoiceDisplay?.showNotes ?? true,
+          showPaymentTerms: data?.invoiceDisplay?.showPaymentTerms ?? true,
+          showFooter: data?.invoiceDisplay?.showFooter ?? true,
+        },
           branding: {
           ...data?.branding,
           businessLogo: data?.logo || data?.branding?.businessLogo
@@ -77,12 +107,14 @@ export default function SettingsPage() {
   async function onSubmit(data: SettingsForm) {
     try {
       const payload = {
+        name: data.name,
         settings: {
           gstNumber: data.gstNumber,
           address: data.address,
           logo: data.logo,
           taxRate: data.taxRate,
           currency: data.currency,
+          invoiceDisplay: data.invoiceDisplay,
           branding: {
             businessLogo: data.logo, // Syncing logo with branding.businessLogo
             primaryColor: data.branding?.primaryColor || undefined,
@@ -107,6 +139,37 @@ export default function SettingsPage() {
     }
   }
 
+  async function changePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    setPasswordSubmitting(true)
+    setPasswordError('')
+    setPasswordSaved(false)
+
+    const formData = new FormData(form)
+    const response = await fetch('/api/account/password', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword: formData.get('currentPassword'),
+        newPassword: formData.get('newPassword'),
+        confirmPassword: formData.get('confirmPassword'),
+      }),
+    })
+
+    const result = await response.json()
+    setPasswordSubmitting(false)
+
+    if (!response.ok) {
+      const fieldErrors = result.error?.fieldErrors
+      setPasswordError(fieldErrors ? Object.values(fieldErrors).flat()[0] || 'Unable to change password' : result.error || 'Unable to change password')
+      return
+    }
+
+    form.reset()
+    setPasswordSaved(true)
+  }
+
   if (loading) {
     return <SettingsPageSkeleton />
   }
@@ -124,6 +187,7 @@ export default function SettingsPage() {
             {/* Basic Business Info */}
             <div className="space-y-4 border-b pb-6">
               <h3 className="text-sm font-semibold text-gray-700">Business Information</h3>
+              <Input label="Company Name" placeholder="Your company name" {...register('name')} />
               <Input label="GST Number" placeholder="e.g., 27AAJPA1234F1Z5" {...register('gstNumber')} />
               <Input label="Address" placeholder="Business address" {...register('address')} />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -211,6 +275,26 @@ export default function SettingsPage() {
             {/* Invoice Settings */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-gray-700">Invoice Settings</h3>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {([
+                  ['showCompanyName', 'Company name'],
+                  ['showAddress', 'Company address'],
+                  ['showGstNumber', 'GST number'],
+                  ['showLogo', 'Company logo'],
+                  ['showContactDetails', 'Phone and email'],
+                  ['showCustomerDetails', 'Customer details'],
+                  ['showItemTax', 'Item tax'],
+                  ['showTotals', 'Invoice totals'],
+                  ['showNotes', 'Notes'],
+                  ['showPaymentTerms', 'Payment terms'],
+                  ['showFooter', 'Invoice footer'],
+                ] as const).map(([field, label]) => (
+                  <label key={field} className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" {...register(`invoiceDisplay.${field}`)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Payment Terms</label>
                 <textarea
@@ -236,6 +320,26 @@ export default function SettingsPage() {
                 {isSubmitting ? 'Saving…' : 'Save changes'}
               </Button>
               {saved && <p className="text-sm text-green-600">✓ Saved successfully</p>}
+            </div>
+          </form>
+        </CardBody>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h2 className="text-sm font-semibold text-gray-800">Change Password</h2>
+        </CardHeader>
+        <CardBody>
+          <form onSubmit={changePassword} className="max-w-xl space-y-4">
+            <Input label="Current password" name="currentPassword" type="password" autoComplete="current-password" required />
+            <Input label="New password" name="newPassword" type="password" autoComplete="new-password" required minLength={8} />
+            <Input label="Confirm new password" name="confirmPassword" type="password" autoComplete="new-password" required minLength={8} />
+            <div className="flex items-center gap-3 pt-2">
+              <Button type="submit" disabled={passwordSubmitting}>
+                {passwordSubmitting ? 'Updating…' : 'Update password'}
+              </Button>
+              {passwordSaved && <p className="text-sm text-green-600">Password updated successfully</p>}
+              {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
             </div>
           </form>
         </CardBody>

@@ -1,13 +1,22 @@
 import mongoose from 'mongoose'
 
-const MONGODB_URI = process.env.MONGODB_URI
+const databaseMode = process.env.MONGODB_MODE?.toLowerCase() || 'cloud'
+const mongodbUri = databaseMode === 'local'
+  ? process.env.MONGODB_LOCAL_URI
+  : process.env.MONGODB_URI
 
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable inside .env.local')
+if (databaseMode !== 'local' && databaseMode !== 'cloud') {
+  throw new Error('MONGODB_MODE must be either "local" or "cloud"')
 }
 
+if (!mongodbUri) {
+  const variableName = databaseMode === 'local' ? 'MONGODB_LOCAL_URI' : 'MONGODB_URI'
+  throw new Error(`Please define ${variableName} in the environment`)
+}
+
+const resolvedMongoDbUri = mongodbUri
+
 declare global {
-  // eslint-disable-next-line no-var
   var _mongooseCache: { conn: typeof mongoose | null; promise: Promise<typeof mongoose> | null }
 }
 
@@ -22,7 +31,7 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   if (!cached.promise) {
     cached.promise = mongoose
-      .connect(MONGODB_URI as string, { bufferCommands: false })
+      .connect(resolvedMongoDbUri, { bufferCommands: false })
       .then((m) => m)
   }
 
