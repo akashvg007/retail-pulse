@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { FeatureGate } from '@/components/FeatureGate'
 import { LockedPage } from '@/components/LockedPage'
@@ -15,7 +15,7 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import type { OcrExtractedData } from '@/lib/ocr/types'
 import { OCR_AUTOFILL_CONFIDENCE_THRESHOLD } from '@/lib/ocr/types'
 import { useFeature } from '@/contexts/FeatureContext'
-import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle, Eye, Boxes } from 'lucide-react'
+import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle, Eye, Boxes, MoreVertical } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 type PurchaseStatus = 'draft' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled'
@@ -83,6 +83,7 @@ export default function PurchasesPage() {
   const [paymentTerms, setPaymentTerms] = useState('Cash')
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('')
   const [notes, setNotes] = useState('')
+  const [roundingAdjustment, setRoundingAdjustment] = useState(0)
   const [items, setItems] = useState<PurchaseItemForm[]>([createEmptyItem()])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -137,6 +138,7 @@ export default function PurchasesPage() {
     setPaymentTerms('Cash')
     setExpectedDeliveryDate('')
     setNotes('')
+    setRoundingAdjustment(0)
     setItems([createEmptyItem()])
     setOcrBusy(false)
     setOcrProgress(0)
@@ -171,6 +173,9 @@ export default function PurchasesPage() {
       }
       if (field === 'mrpDiscount') {
         return { ...item, mrpDiscount: nextValue, price: item.mrp * (1 - nextValue / 100) }
+      }
+      if (field === 'price') {
+        return { ...item, price: nextValue, mrpDiscount: item.mrp > 0 ? Math.max(0, Math.min(100, (item.mrp - nextValue) / item.mrp * 100)) : 0 }
       }
       if (field === 'unitCost') {
         return { ...item, unitCost: nextValue, discountAmount: item.qty * nextValue * item.discountPercentage / 100 }
@@ -345,6 +350,7 @@ export default function PurchasesPage() {
         paymentTerms,
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes: notes || undefined,
+        roundingAdjustment,
         ocrMeta: ocrData
           ? {
             confidence: Number(ocrData.confidence.toFixed(2)),
@@ -696,10 +702,7 @@ export default function PurchasesPage() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-gray-700">Line items</p>
-              <Button type="button" size="sm" variant="secondary" onClick={addItem}>Add item</Button>
-            </div>
+            <p className="text-sm font-medium text-gray-700">Line items</p>
             {items.map((item, index) => {
               const lineTotal = calculateLineTotal(item)
               return (
@@ -728,7 +731,7 @@ export default function PurchasesPage() {
                     <Input label="Discount amount" type="number" min="0" step="0.01" value={item.discountAmount} onChange={(event) => updateItem(index, 'discountAmount', event.target.value)} />
                     <Input label="MRP" type="number" min="0" step="0.01" value={item.mrp} onChange={(event) => updateItem(index, 'mrp', event.target.value)} />
                     <Input label="MRP discount %" type="number" min="0" max="100" step="0.01" value={item.mrpDiscount} onChange={(event) => updateItem(index, 'mrpDiscount', event.target.value)} />
-                    <Input label="Price" type="number" value={item.price.toFixed(2)} readOnly className="bg-gray-50" />
+                    <Input label="Price" type="number" min="0" step="0.01" value={item.price} onChange={(event) => updateItem(index, 'price', event.target.value)} />
                   </div>
                   <div className="mt-3 flex items-center justify-between text-sm">
                     <span className="text-gray-500">Line total</span>
@@ -742,6 +745,7 @@ export default function PurchasesPage() {
                 </div>
               )
             })}
+            <Button type="button" size="sm" variant="secondary" onClick={addItem}>Add item</Button>
           </div>
 
           <datalist id="purchase-product-names">
@@ -751,8 +755,16 @@ export default function PurchasesPage() {
             {products.filter((product) => product.hsnCode).map((product) => <option key={`hsn-${product._id}`} value={product.hsnCode} />)}
           </datalist>
 
-          <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm text-indigo-900">
-            Order total: {formatCurrency(items.reduce((sum, item) => sum + calculateLineTotal(item), 0))}
+          <div className="space-y-3 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-sm text-indigo-900">
+            <Input
+              label="Rounding adjustment"
+              type="number"
+              step="0.01"
+              value={roundingAdjustment}
+              onChange={(event) => setRoundingAdjustment(Number(event.target.value) || 0)}
+            />
+            <p className="text-xs text-indigo-700">Use a negative value to round down or a positive value to round up.</p>
+            <div>Order total: {formatCurrency(items.reduce((sum, item) => sum + calculateLineTotal(item), 0) + roundingAdjustment)}</div>
           </div>
 
           <ModalFooter
@@ -863,45 +875,75 @@ function RowActions({
   busyId: string | null
 }) {
   const disabled = busyId === row._id
+  const [open, setOpen] = useState(false)
+  const actionsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [open])
+
+  function closeAndRun(action: () => void) {
+    setOpen(false)
+    action()
+  }
+
   return (
-    <div className="flex gap-2">
+    <div ref={actionsRef} className="relative flex justify-end">
       <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((current) => !current)}
+        className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-40"
+        title="Purchase order actions"
         disabled={disabled}
-        onClick={() => onView(row._id)}
-        className="text-gray-400 hover:text-slate-700 disabled:opacity-40"
-        title="View purchase order"
       >
-        <Eye size={14} />
+        <MoreVertical size={18} />
       </button>
-      {row.status === 'draft' ? (
-        <button disabled={disabled} onClick={() => onAction(row._id, 'approve')} className="text-gray-400 hover:text-green-600 disabled:opacity-40" title="Approve">
-          <CheckCircle2 size={14} />
-        </button>
-      ) : null}
-      {['draft', 'approved'].includes(row.status) ? (
-        <button disabled={disabled} onClick={() => onAction(row._id, 'send')} className="text-gray-400 hover:text-indigo-600 disabled:opacity-40" title="Send">
-          <Send size={14} />
-        </button>
-      ) : null}
-      {['approved', 'sent', 'partially_received'].includes(row.status) ? (
-        <button disabled={disabled} onClick={() => onAction(row._id, 'receive')} className="text-gray-400 hover:text-emerald-600 disabled:opacity-40" title="Mark received">
-          <PackageCheck size={14} />
-        </button>
-      ) : null}
-      {!['received', 'cancelled'].includes(row.status) ? (
-        <button disabled={disabled} onClick={() => onAction(row._id, 'cancel')} className="text-gray-400 hover:text-red-600 disabled:opacity-40" title="Cancel">
-          <XCircle size={14} />
-        </button>
-      ) : null}
-      {row.status === 'received' ? (
-        <button
-          disabled={disabled || Boolean(row.inventoryPostedAt)}
-          onClick={() => onInventoryPost(row._id)}
-          className="text-gray-400 hover:text-indigo-700 disabled:opacity-40"
-          title={row.inventoryPostedAt ? 'Already added to inventory' : 'Add purchase products to inventory'}
+      {open ? (
+        <div
+          className="absolute bottom-8 right-0 z-20 min-w-48 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+          role="menu"
+          aria-label="Purchase order actions"
         >
-          <Boxes size={14} />
-        </button>
+          <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onView(row._id))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+            <Eye size={14} /> View purchase order
+          </button>
+          {row.status === 'draft' ? (
+            <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onAction(row._id, 'approve'))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+              <CheckCircle2 size={14} /> Approve
+            </button>
+          ) : null}
+          {['draft', 'approved'].includes(row.status) ? (
+            <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onAction(row._id, 'send'))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+              <Send size={14} /> Send
+            </button>
+          ) : null}
+          {['approved', 'sent', 'partially_received'].includes(row.status) ? (
+            <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onAction(row._id, 'receive'))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+              <PackageCheck size={14} /> Mark received
+            </button>
+          ) : null}
+          {!['received', 'cancelled'].includes(row.status) ? (
+            <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onAction(row._id, 'cancel'))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-40">
+              <XCircle size={14} /> Cancel
+            </button>
+          ) : null}
+          {row.status === 'received' ? (
+            <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onInventoryPost(row._id))} disabled={disabled || Boolean(row.inventoryPostedAt)} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+              <Boxes size={14} /> {row.inventoryPostedAt ? 'Already in inventory' : 'Add to inventory'}
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   )

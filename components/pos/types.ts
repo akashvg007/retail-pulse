@@ -4,6 +4,7 @@ export interface ProductData {
   sku: string
   category: string
   price: number
+  mrp: number
   taxRate: number
   stockQty: number
 }
@@ -12,6 +13,7 @@ export interface CartItem {
   _id: string
   name: string
   price: number
+  mrp: number
   taxRate: number
   qty: number
 }

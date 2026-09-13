@@ -1,5 +1,5 @@
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { InvoiceData, InvoicePrintTemplate } from "../type";
+import { getInvoiceTaxSplit, InvoiceData, InvoicePrintTemplate } from "../type";
 import Image from "next/image";
 
 type InvoiceBranding = {
@@ -44,6 +44,7 @@ export default function InvoicePrintPreview({
     invoice.customerId?.email ?? invoice.customerSnapshot?.email;
   const customerGst =
     invoice.customerId?.gstNumber ?? invoice.customerSnapshot?.gstNumber;
+  const taxSplit = getInvoiceTaxSplit(invoice);
 
   if (template === "standard-a4" || template === "standard-a5") {
     return (
@@ -94,6 +95,7 @@ export default function InvoicePrintPreview({
             <tr className="text-left text-gray-500">
               <th className="py-2 font-medium">Item</th>
               <th className="py-2 font-medium text-right">Qty</th>
+              <th className="py-2 font-medium text-right">MRP</th>
               <th className="py-2 font-medium text-right">Price</th>
               {display.showItemTax && <th className="py-2 font-medium text-right">Tax</th>}
               <th className="py-2 font-medium text-right">Total</th>
@@ -104,6 +106,7 @@ export default function InvoicePrintPreview({
               <tr key={i} className="border-t border-gray-100">
                 <td className="py-2 text-gray-900">{item.name}</td>
                 <td className="py-2 text-right">{item.qty}</td>
+                <td className="py-2 text-right">{formatCurrency(item.mrp ?? 0)}</td>
                 <td className="py-2 text-right">
                   {formatCurrency(item.price)}
                 </td>
@@ -121,12 +124,16 @@ export default function InvoicePrintPreview({
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subtotal)}</span>
           </div>
-          {invoice.taxAmount > 0 && (
+          {invoice.taxAmount > 0 && <>
             <div className="mt-1 flex justify-between text-gray-700">
-              <span>Tax</span>
-              <span>{formatCurrency(invoice.taxAmount)}</span>
+              <span>CGST ({taxSplit.rate.toFixed(2)}%)</span>
+              <span>{formatCurrency(taxSplit.amount)}</span>
             </div>
-          )}
+            <div className="mt-1 flex justify-between text-gray-700">
+              <span>SGST ({taxSplit.rate.toFixed(2)}%)</span>
+              <span>{formatCurrency(taxSplit.amount)}</span>
+            </div>
+          </>}
           {invoice.discount > 0 && (
             <div className="mt-1 flex justify-between text-gray-700">
               <span>Discount</span>
@@ -203,6 +210,7 @@ export default function InvoicePrintPreview({
             <tr className="border-y border-gray-300">
               <th className="py-1.5 text-left font-semibold">Item</th>
               <th className="py-1.5 text-right font-semibold">Qty</th>
+              <th className="py-1.5 text-right font-semibold">MRP</th>
               <th className="py-1.5 text-right font-semibold">Total</th>
             </tr>
           </thead>
@@ -211,6 +219,7 @@ export default function InvoicePrintPreview({
               <tr key={i} className="border-b border-gray-100">
                 <td className="py-1.5">{item.name}</td>
                 <td className="py-1.5 text-right">{item.qty}</td>
+                <td className="py-1.5 text-right">{formatCurrency(item.mrp ?? 0)}</td>
                 <td className="py-1.5 text-right">
                   {formatCurrency(item.total)}
                 </td>
@@ -224,12 +233,16 @@ export default function InvoicePrintPreview({
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subtotal)}</span>
           </div>
-          {invoice.taxAmount > 0 && (
+          {invoice.taxAmount > 0 && <>
             <div className="mt-1 flex justify-between">
-              <span>Tax</span>
-              <span>{formatCurrency(invoice.taxAmount)}</span>
+              <span>CGST ({taxSplit.rate.toFixed(2)}%)</span>
+              <span>{formatCurrency(taxSplit.amount)}</span>
             </div>
-          )}
+            <div className="mt-1 flex justify-between">
+              <span>SGST ({taxSplit.rate.toFixed(2)}%)</span>
+              <span>{formatCurrency(taxSplit.amount)}</span>
+            </div>
+          </>}
           {invoice.discount > 0 && (
             <div className="mt-1 flex justify-between">
               <span>Discount</span>
@@ -283,7 +296,7 @@ export default function InvoicePrintPreview({
               <p className="font-semibold">{item.name}</p>
               <div className="flex justify-between">
                 <span>
-                  {item.qty} x {formatCurrency(item.price)}
+                  {item.qty} x {formatCurrency(item.price)} | MRP {formatCurrency(item.mrp ?? 0)}
                 </span>
                 <span>{formatCurrency(item.total)}</span>
               </div>
@@ -300,12 +313,16 @@ export default function InvoicePrintPreview({
               <span>Subtotal</span>
               <span>{formatCurrency(invoice.subtotal)}</span>
             </div>
-            {invoice.taxAmount > 0 && (
+            {invoice.taxAmount > 0 && <>
               <div className="flex justify-between">
-                <span>Tax</span>
-                <span>{formatCurrency(invoice.taxAmount)}</span>
+                <span>CGST ({taxSplit.rate.toFixed(2)}%)</span>
+                <span>{formatCurrency(taxSplit.amount)}</span>
               </div>
-            )}
+              <div className="flex justify-between">
+                <span>SGST ({taxSplit.rate.toFixed(2)}%)</span>
+                <span>{formatCurrency(taxSplit.amount)}</span>
+              </div>
+            </>}
             {invoice.discount > 0 && (
               <div className="flex justify-between">
                 <span>Discount</span>
@@ -359,7 +376,7 @@ export default function InvoicePrintPreview({
           <div key={i} className="flex justify-between py-0.5">
             <span className="max-w-[60%] truncate">{item.name}</span>
             <span>
-              {item.qty} x {formatCurrency(item.price)}
+              {item.qty} x {formatCurrency(item.price)} | MRP {formatCurrency(item.mrp ?? 0)}
             </span>
           </div>
         ))}
@@ -371,12 +388,16 @@ export default function InvoicePrintPreview({
             <span>Subtotal</span>
             <span>{formatCurrency(invoice.subtotal)}</span>
           </div>
-          {display.showTotals && invoice.taxAmount > 0 && (
+          {display.showTotals && invoice.taxAmount > 0 && <>
             <div className="flex justify-between">
-              <span>Tax</span>
-              <span>{formatCurrency(invoice.taxAmount)}</span>
+              <span>CGST ({taxSplit.rate.toFixed(2)}%)</span>
+              <span>{formatCurrency(taxSplit.amount)}</span>
             </div>
-          )}
+            <div className="flex justify-between">
+              <span>SGST ({taxSplit.rate.toFixed(2)}%)</span>
+              <span>{formatCurrency(taxSplit.amount)}</span>
+            </div>
+          </>}
           {display.showTotals && <div className="flex justify-between font-bold text-[11px]">
             <span>Total</span>
             <span>{formatCurrency(invoice.total)}</span>

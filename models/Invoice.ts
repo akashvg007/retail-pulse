@@ -6,7 +6,9 @@ export interface InvoiceItem {
   productId?: mongoose.Types.ObjectId
   name: string
   qty: number
+  returnedQty?: number
   price: number
+  mrp: number
   taxRate: number
   total: number
 }
@@ -38,7 +40,9 @@ const InvoiceItemSchema = new Schema<InvoiceItem>(
     productId: { type: Schema.Types.ObjectId, ref: 'Product' },
     name: { type: String, required: true },
     qty: { type: Number, required: true, min: 1 },
+    returnedQty: { type: Number, default: 0, min: 0 },
     price: { type: Number, required: true, min: 0 },
+    mrp: { type: Number, default: 0, min: 0 },
     taxRate: { type: Number, default: 0 },
     total: { type: Number, required: true },
   },
@@ -69,7 +73,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     },
     razorpayOrderId: String,
     inventoryDeductedAt: Date,
-      refundedAt: Date,
+    refundedAt: Date,
     dueDate: Date,
     notes: String,
   },

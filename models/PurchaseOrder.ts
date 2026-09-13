@@ -45,6 +45,7 @@ export interface IPurchaseOrder extends Document {
   subtotal: number
   taxAmount: number
   total: number
+  roundingAdjustment: number
   receivedValue: number
   paidAmount: number
   paymentStatus: PurchasePaymentStatus
@@ -109,6 +110,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     subtotal: { type: Number, required: true, min: 0 },
     taxAmount: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
+    roundingAdjustment: { type: Number, default: 0 },
     receivedValue: { type: Number, default: 0, min: 0 },
     paidAmount: { type: Number, default: 0, min: 0 },
     paymentStatus: {

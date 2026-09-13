@@ -131,7 +131,7 @@ export default function POSPage() {
     setCart((prev) => {
       const existing = prev.find((i) => i._id === product._id)
       if (existing) return prev.map((i) => i._id === product._id ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, { _id: product._id, name: product.name, price: product.price, taxRate: product.taxRate, qty: 1 }]
+      return [...prev, { _id: product._id, name: product.name, price: product.price, mrp: product.mrp ?? 0, taxRate: product.taxRate, qty: 1 }]
     })
     setLastAddedId(product._id)
     setTimeout(() => setLastAddedId((prev) => (prev === product._id ? null : prev)), 400)
@@ -281,8 +281,15 @@ export default function POSPage() {
   }
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0)
-  const tax = cart.reduce((sum, i) => sum + (i.price * i.qty * i.taxRate) / 100, 0)
-  const total = subtotal + tax
+  const tax = cart.reduce((sum, i) => {
+    const gross = i.price * i.qty
+    return sum + (gross * i.taxRate) / (100 + i.taxRate)
+  }, 0)
+  const taxableSubtotal = subtotal - tax
+  const cgst = tax / 2
+  const sgst = tax / 2
+  const cgstRate = taxableSubtotal > 0 ? (cgst / taxableSubtotal) * 100 : 0
+  const total = subtotal
   const cartCount = cart.reduce((sum, i) => sum + i.qty, 0)
 
   const cashAmount = Number(cashReceived || 0)
@@ -318,13 +325,14 @@ export default function POSPage() {
       name: i.name,
       qty: i.qty,
       price: i.price,
+      mrp: i.mrp,
       taxRate: i.taxRate,
       total: i.price * i.qty,
     }))
     const invoiceRes = await fetch('/api/invoices', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, discount: 0, customerId: selectedCustomerId || undefined }),
+      body: JSON.stringify({ items, discount: 0, taxInclusive: true, customerId: selectedCustomerId || undefined }),
     })
 
     if (!invoiceRes.ok) {
@@ -569,13 +577,14 @@ export default function POSPage() {
         <CartPanel
           cart={cart}
           subtotal={subtotal}
-          tax={tax}
+          cgst={cgst}
+          sgst={sgst}
+          cgstRate={cgstRate}
           total={total}
           selectedCustomer={selectedCustomer}
           customers={customers}
           customerSearch={customerSearch}
           customerApiError={customerApiError}
-          cartCount={cartCount}
           paying={paying}
           onRemoveCustomer={() => {
             setSelectedCustomerId('')
@@ -616,7 +625,9 @@ export default function POSPage() {
         drawerVisible={drawerVisible}
         cart={cart}
         subtotal={subtotal}
-        tax={tax}
+        cgst={cgst}
+        sgst={sgst}
+        cgstRate={cgstRate}
         total={total}
         cartCount={cartCount}
         selectedCustomer={selectedCustomer}

@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
 import { Badge, invoiceStatusBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { FeatureGate } from "@/components/FeatureGate";
 import { LockedPage } from '@/components/LockedPage'
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -14,7 +15,7 @@ import {
   CheckCircle2,
   RotateCcw,
 } from "lucide-react";
-import { InvoiceData, InvoicePrintTemplate } from "../type";
+import { getInvoiceTaxSplit, InvoiceData, InvoicePrintTemplate } from "../type";
 import InvoicePrintPreview from "./InvoicePrintPreview";
 const CustomerSelection = lazy(() => import('./CustomerSelection'));
 
@@ -27,7 +28,12 @@ export default function InvoiceDetailPage() {
   const { data, isLoading, mutate } = useSWR(`/api/invoices/${id}`, fetcher);
   const [printTemplate, setPrintTemplate] =
     useState<InvoicePrintTemplate>("standard-a4");
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [returning, setReturning] = useState(false);
+  const [returnError, setReturnError] = useState("");
+  const [returnQuantities, setReturnQuantities] = useState<Record<number, string>>({});
   const invoice = data?.data as InvoiceData | undefined;
+  const taxSplit = invoice ? getInvoiceTaxSplit(invoice) : null;
 
   async function sendInvoice() {
     await fetch(`/api/invoices/${id}/send`, { method: "POST" });
@@ -43,6 +49,48 @@ export default function InvoiceDetailPage() {
       body: JSON.stringify({ status: nextStatus }),
     });
     mutate();
+  }
+
+  function openReturnModal() {
+    if (!invoice) return;
+    setReturnQuantities(
+      Object.fromEntries(
+        invoice.items.map((item, index) => [index, String(Math.max(0, item.qty - (item.returnedQty ?? 0)))])
+      )
+    );
+    setReturnError("");
+    setReturnOpen(true);
+  }
+
+  async function submitReturn() {
+    if (!invoice) return;
+    setReturning(true);
+    setReturnError("");
+    try {
+      const items = invoice.items.flatMap((item, itemIndex) => {
+        const qty = Number(returnQuantities[itemIndex] ?? 0);
+        return Number.isInteger(qty) && qty > 0 ? [{ itemIndex, qty }] : [];
+      });
+      if (items.length === 0) {
+        setReturnError("Select at least one quantity to return");
+        return;
+      }
+
+      const response = await fetch(`/api/invoices/${id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error ?? "Unable to return these items");
+
+      setReturnOpen(false);
+      await mutate();
+    } catch (error) {
+      setReturnError(error instanceof Error ? error.message : "Unable to return these items");
+    } finally {
+      setReturning(false);
+    }
   }
 
   return (
@@ -143,6 +191,11 @@ export default function InvoiceDetailPage() {
                     )}
                     {invoice.status === "paid" ? "Mark unpaid" : "Mark paid"}
                   </Button>
+                  {invoice.inventoryDeductedAt && !invoice.refundedAt && (
+                    <Button size="sm" variant="secondary" onClick={openReturnModal}>
+                      <RotateCcw size={14} /> Return items
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -166,6 +219,7 @@ export default function InvoiceDetailPage() {
                       <tr className="text-left text-gray-500 border-b border-gray-100">
                         <th className="pb-2 font-medium">Item</th>
                         <th className="pb-2 font-medium text-right">Qty</th>
+                        <th className="pb-2 font-medium text-right">MRP</th>
                         <th className="pb-2 font-medium text-right">Price</th>
                         <th className="pb-2 font-medium text-right">Tax</th>
                         <th className="pb-2 font-medium text-right">Total</th>
@@ -174,8 +228,11 @@ export default function InvoiceDetailPage() {
                     <tbody>
                       {(
                         invoice.items as {
+                          productId?: string;
                           name: string;
                           qty: number;
+                          returnedQty?: number;
+                          mrp?: number;
                           price: number;
                           taxRate: number;
                           total: number;
@@ -188,6 +245,10 @@ export default function InvoiceDetailPage() {
                           <td className="py-2 text-gray-900">{item.name}</td>
                           <td className="py-2 text-right text-gray-700">
                             {item.qty}
+                            {item.returnedQty ? <span className="ml-1 text-xs text-gray-400">({item.qty - item.returnedQty} left)</span> : null}
+                          </td>
+                          <td className="py-2 text-right text-gray-700">
+                            {formatCurrency(item.mrp ?? 0)}
                           </td>
                           <td className="py-2 text-right text-gray-700">
                             {formatCurrency(item.price)}
@@ -212,11 +273,17 @@ export default function InvoiceDetailPage() {
                     <span>Subtotal</span>
                     <span>{formatCurrency(invoice.subtotal)}</span>
                   </div>
-                  {invoice.taxAmount > 0 && (
-                    <div className="flex justify-between text-gray-600">
-                      <span>Tax</span>
-                      <span>{formatCurrency(invoice.taxAmount)}</span>
-                    </div>
+                  {invoice.taxAmount > 0 && taxSplit && (
+                    <>
+                      <div className="flex justify-between text-gray-600">
+                        <span>CGST ({taxSplit.rate.toFixed(2)}%)</span>
+                        <span>{formatCurrency(taxSplit.amount)}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-600">
+                        <span>SGST ({taxSplit.rate.toFixed(2)}%)</span>
+                        <span>{formatCurrency(taxSplit.amount)}</span>
+                      </div>
+                    </>
                   )}
                   {invoice.discount > 0 && (
                     <div className="flex justify-between text-gray-600">
@@ -243,6 +310,50 @@ export default function InvoiceDetailPage() {
             </div>
 
             <InvoicePrintPreview invoice={invoice} template={printTemplate} />
+
+            <Modal
+              open={returnOpen}
+              onClose={() => { if (!returning) setReturnOpen(false) }}
+              title="Return invoice items"
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  Enter the quantity being returned for each item. Leave an item at zero to keep it.
+                </p>
+                <div className="space-y-3">
+                  {invoice.items.map((item, itemIndex) => {
+                    const remaining = Math.max(0, item.qty - (item.returnedQty ?? 0));
+                    return (
+                      <div key={`${item.name}-${itemIndex}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 p-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-gray-900">{item.name}</p>
+                          <p className="text-xs text-gray-500">{remaining} remaining</p>
+                        </div>
+                        <input
+                          aria-label={`Return quantity for ${item.name}`}
+                          className="w-20 rounded-md border border-gray-300 px-2 py-1.5 text-right text-sm"
+                          disabled={remaining === 0 || returning}
+                          min="0"
+                          max={remaining}
+                          onChange={(event) => setReturnQuantities((current) => ({ ...current, [itemIndex]: event.target.value }))}
+                          type="number"
+                          value={returnQuantities[itemIndex] ?? "0"}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {returnError && <p className="text-sm text-red-600">{returnError}</p>}
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="secondary" disabled={returning} onClick={() => setReturnOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="button" disabled={returning} onClick={submitReturn}>
+                    {returning ? "Returning…" : "Confirm return"}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
           </>
         )}
       </div>

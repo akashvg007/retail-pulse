@@ -7,9 +7,12 @@ export type InvoicePrintTemplate =
   | "thermal-compact";
 
 export interface InvoiceItem {
+  productId?: string;
   name: string;
   qty: number;
+  returnedQty?: number;
   price: number;
+  mrp: number;
   taxRate: number;
   total: number;
 }
@@ -39,6 +42,8 @@ export interface InvoiceData {
   discount: number;
   total: number;
   notes?: string;
+  inventoryDeductedAt?: string;
+  refundedAt?: string;
   tenantBranding?: {
     name?: string;
     businessLogo?: string;
@@ -63,6 +68,13 @@ export interface InvoiceData {
       boolean
     >>;
   };
+}
+
+export function getInvoiceTaxSplit(invoice: Pick<InvoiceData, "subtotal" | "taxAmount">) {
+  const halfTax = invoice.taxAmount / 2;
+  const halfRate = invoice.subtotal > 0 ? (halfTax / invoice.subtotal) * 100 : 0;
+
+  return { amount: halfTax, rate: halfRate };
 }
 
 export interface CustomerSelectionProps {

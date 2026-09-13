@@ -90,8 +90,9 @@ export async function POST(req: NextRequest) {
   })
 
   const subtotal = items.reduce((sum, item) => sum + Math.max(0, item.qty * item.unitCost - item.discountAmount), 0)
-  const total = items.reduce((sum, item) => sum + item.total, 0)
-  const taxAmount = total - subtotal
+  const calculatedTotal = items.reduce((sum, item) => sum + item.total, 0)
+  const total = Math.max(0, calculatedTotal + parsed.data.roundingAdjustment)
+  const taxAmount = Math.max(0, calculatedTotal - subtotal)
 
   const tenant = await Tenant.findByIdAndUpdate(
     ctx.tenantId,
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
     subtotal,
     taxAmount,
     total,
+    roundingAdjustment: parsed.data.roundingAdjustment,
     expectedDeliveryDate: parsed.data.expectedDeliveryDate
       ? new Date(parsed.data.expectedDeliveryDate)
       : undefined,

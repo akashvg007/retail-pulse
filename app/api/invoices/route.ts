@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { Invoice } from '@/models/Invoice'
+import { Product } from '@/models/Product'
 import { Customer } from '@/models/Customer'
 import { Tenant } from '@/models/Tenant'
 import { invoiceSchema } from '@/lib/validations'
@@ -55,14 +56,32 @@ export async function POST(req: NextRequest) {
 
   await connectDB()
 
-  const { customerId, items, discount = 0, dueDate, notes } = parsed.data
+  const { customerId, items, discount = 0, taxInclusive, dueDate, notes } = parsed.data
+  const productIds = items
+    .map((item) => item.productId)
+    .filter((productId): productId is string => Boolean(productId))
+  const products = productIds.length > 0
+    ? await Product.find({ tenantId: ctx.tenantId, _id: { $in: productIds } }).select('_id mrp').lean()
+    : []
+  const productMrp = new Map(products.map((product) => [String(product._id), product.mrp ?? 0]))
+  const invoiceItems = items.map((item) => ({
+    ...item,
+    mrp: item.productId ? productMrp.get(item.productId) ?? item.mrp : item.mrp,
+  }))
 
   // Compute totals
   let subtotal = 0
   let taxAmount = 0
-  for (const item of items) {
-    subtotal += item.price * item.qty
-    taxAmount += (item.price * item.qty * item.taxRate) / 100
+  for (const item of invoiceItems) {
+    const gross = item.price * item.qty
+    if (taxInclusive) {
+      const itemTax = (gross * item.taxRate) / (100 + item.taxRate)
+      subtotal += gross - itemTax
+      taxAmount += itemTax
+    } else {
+      subtotal += gross
+      taxAmount += (gross * item.taxRate) / 100
+    }
   }
   const total = subtotal + taxAmount - discount
 
@@ -90,7 +109,7 @@ export async function POST(req: NextRequest) {
     staffId: ctx.userId,
     customerId: customerId || undefined,
     customerSnapshot,
-    items,
+    items: invoiceItems,
     subtotal,
     taxAmount,
     discount,

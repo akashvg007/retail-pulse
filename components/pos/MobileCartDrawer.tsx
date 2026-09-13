@@ -9,7 +9,9 @@ interface MobileCartDrawerProps {
   drawerVisible: boolean
   cart: CartItem[]
   subtotal: number
-  tax: number
+  cgst: number
+  sgst: number
+  cgstRate: number
   total: number
   cartCount: number
   selectedCustomer: CustomerData | undefined
@@ -32,7 +34,9 @@ export function MobileCartDrawer({
   drawerVisible,
   cart,
   subtotal,
-  tax,
+  cgst,
+  sgst,
+  cgstRate,
   total,
   cartCount,
   selectedCustomer,
@@ -147,10 +151,13 @@ export function MobileCartDrawer({
 
         <div className="border-t border-gray-200 p-4 space-y-2">
           <div className="flex justify-between text-sm text-gray-500">
-            <span>Subtotal</span><span>{formatCurrency(subtotal)}</span>
+            <span>Subtotal (incl. tax)</span><span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between text-sm text-gray-500">
-            <span>Tax</span><span>{formatCurrency(tax)}</span>
+            <span>CGST ({cgstRate.toFixed(2)}%)</span><span>{formatCurrency(cgst)}</span>
+          </div>
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>SGST ({cgstRate.toFixed(2)}%)</span><span>{formatCurrency(sgst)}</span>
           </div>
           <div className="flex justify-between text-base font-bold text-gray-900">
             <span>Total</span><span>{formatCurrency(total)}</span>
