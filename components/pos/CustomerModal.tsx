@@ -20,6 +20,7 @@ export function CustomerModal({ open, form, error, creating, onClose, onChange, 
         <Input label="Name" value={form.name} onChange={(e) => onChange('name', e.target.value)} required />
         <Input label="Email" type="email" value={form.email} onChange={(e) => onChange('email', e.target.value)} />
         <Input label="Phone" value={form.phone} onChange={(e) => onChange('phone', e.target.value)} />
+        <Input label="Address" value={form.address} onChange={(e) => onChange('address', e.target.value)} />
         {error && <p className="text-xs text-red-600">{error}</p>}
         <div className="flex gap-2 pt-2">
           <Button type="submit" className="flex-1" disabled={creating}>

@@ -7,9 +7,15 @@ export interface OcrSupplierCandidate {
 
 export interface OcrItemCandidate {
   name: string
+  hsnCode: string
   qty: number
   unitCost: number
+  discountPercentage: number
+  discountAmount: number
   taxRate: number
+  mrp: number
+  mrpDiscount: number
+  price: number
   total: number
 }
 

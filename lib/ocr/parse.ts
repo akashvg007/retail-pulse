@@ -150,9 +150,15 @@ function parseItems(lines: string[]): OcrItemCandidate[] {
       if (name && qty && rate !== undefined && amount !== undefined) {
         parsedItems.push({
           name,
+          hsnCode: '',
           qty,
           unitCost: rate,
+          discountPercentage: 0,
+          discountAmount: 0,
           taxRate,
+          mrp: 0,
+          mrpDiscount: 0,
+          price: rate,
           total: amount,
         })
         continue
@@ -172,9 +178,15 @@ function parseItems(lines: string[]): OcrItemCandidate[] {
 
     parsedItems.push({
       name,
+      hsnCode: '',
       qty,
       unitCost,
+      discountPercentage: 0,
+      discountAmount: 0,
       taxRate: 0,
+      mrp: 0,
+      mrpDiscount: 0,
+      price: unitCost,
       total,
     })
   }

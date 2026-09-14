@@ -209,15 +209,15 @@ export default function PurchasesPage() {
       setItems(data.items.map((item) => ({
         productId: undefined,
         name: item.name,
-        hsnCode: '',
+        hsnCode: item.hsnCode,
         qty: item.qty,
         unitCost: item.unitCost,
-        discountPercentage: 0,
-        discountAmount: 0,
+        discountPercentage: item.discountPercentage,
+        discountAmount: item.discountAmount,
         taxRate: item.taxRate,
-        mrp: 0,
-        mrpDiscount: 0,
-        price: item.unitCost,
+        mrp: item.mrp,
+        mrpDiscount: item.mrpDiscount,
+        price: item.price,
       })))
     }
 
@@ -876,10 +876,21 @@ function RowActions({
 }) {
   const disabled = busyId === row._id
   const [open, setOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<{ bottom: number; right: number } | null>(null)
   const actionsRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
+
+    function updateMenuPosition() {
+      if (!triggerRef.current) return
+      const rect = triggerRef.current.getBoundingClientRect()
+      setMenuPosition({
+        bottom: window.innerHeight - rect.top + 8,
+        right: window.innerWidth - rect.right,
+      })
+    }
 
     function handleOutsideClick(event: MouseEvent) {
       if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
@@ -887,8 +898,15 @@ function RowActions({
       }
     }
 
+    updateMenuPosition()
     document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
   }, [open])
 
   function closeAndRun(action: () => void) {
@@ -899,6 +917,7 @@ function RowActions({
   return (
     <div ref={actionsRef} className="relative flex justify-end">
       <button
+        ref={triggerRef}
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -911,9 +930,10 @@ function RowActions({
       </button>
       {open ? (
         <div
-          className="absolute bottom-8 right-0 z-20 min-w-48 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+          className="fixed z-50 min-w-48 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
           role="menu"
           aria-label="Purchase order actions"
+          style={menuPosition ? { bottom: menuPosition.bottom, right: menuPosition.right } : undefined}
         >
           <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onView(row._id))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
             <Eye size={14} /> View purchase order

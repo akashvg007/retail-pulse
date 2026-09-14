@@ -75,7 +75,7 @@ export default function POSPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [customerOpen, setCustomerOpen] = useState(false)
   const [creatingCustomer, setCreatingCustomer] = useState(false)
-  const [customerForm, setCustomerForm] = useState<CustomerFormData>({ name: '', email: '', phone: '' })
+  const [customerForm, setCustomerForm] = useState<CustomerFormData>({ name: '', email: '', phone: '', address: '' })
   const [customerFormError, setCustomerFormError] = useState('')
   const [scannerMessage, setScannerMessage] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -491,7 +491,7 @@ export default function POSPage() {
   }
 
   function openCreateCustomer() {
-    setCustomerForm({ name: '', email: '', phone: '' })
+    setCustomerForm({ name: '', email: '', phone: '', address: '' })
     setCustomerFormError('')
     setCustomerOpen(true)
   }
@@ -518,6 +518,7 @@ export default function POSPage() {
           name: customerForm.name.trim(),
           email: customerForm.email.trim(),
           phone: customerForm.phone.trim(),
+          address: customerForm.address.trim(),
         }),
       })
 

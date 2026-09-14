@@ -214,15 +214,15 @@ export default function InvoiceDetailPage() {
                   Items
                 </p>
                 <div className="overflow-x-auto">
-                  <table className="min-w-155 w-full text-sm">
+                  <table className="min-w-155 w-full border-collapse border border-gray-200 text-sm">
                     <thead>
-                      <tr className="text-left text-gray-500 border-b border-gray-100">
-                        <th className="pb-2 font-medium">Item</th>
-                        <th className="pb-2 font-medium text-right">Qty</th>
-                        <th className="pb-2 font-medium text-right">MRP</th>
-                        <th className="pb-2 font-medium text-right">Price</th>
-                        <th className="pb-2 font-medium text-right">Tax</th>
-                        <th className="pb-2 font-medium text-right">Total</th>
+                      <tr className="bg-gray-50 text-left text-gray-500">
+                        <th className="border border-gray-200 px-3 py-2 font-medium">Item</th>
+                        <th className="border border-gray-200 px-3 py-2 text-right font-medium">Qty</th>
+                        <th className="border border-gray-200 px-3 py-2 text-right font-medium">MRP</th>
+                        <th className="border border-gray-200 px-3 py-2 text-right font-medium">Price</th>
+                        <th className="border border-gray-200 px-3 py-2 text-right font-medium">Tax</th>
+                        <th className="border border-gray-200 px-3 py-2 text-right font-medium">Total</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -240,23 +240,23 @@ export default function InvoiceDetailPage() {
                       ).map((item, i) => (
                         <tr
                           key={i}
-                          className="border-b border-gray-50 last:border-0"
+                          className="hover:bg-gray-50"
                         >
-                          <td className="py-2 text-gray-900">{item.name}</td>
-                          <td className="py-2 text-right text-gray-700">
+                          <td className="border border-gray-200 px-3 py-2 text-gray-900">{item.name}</td>
+                          <td className="border border-gray-200 px-3 py-2 text-right text-gray-700">
                             {item.qty}
                             {item.returnedQty ? <span className="ml-1 text-xs text-gray-400">({item.qty - item.returnedQty} left)</span> : null}
                           </td>
-                          <td className="py-2 text-right text-gray-700">
+                          <td className="border border-gray-200 px-3 py-2 text-right text-gray-700">
                             {formatCurrency(item.mrp ?? 0)}
                           </td>
-                          <td className="py-2 text-right text-gray-700">
+                          <td className="border border-gray-200 px-3 py-2 text-right text-gray-700">
                             {formatCurrency(item.price)}
                           </td>
-                          <td className="py-2 text-right text-gray-500">
+                          <td className="border border-gray-200 px-3 py-2 text-right text-gray-500">
                             {item.taxRate}%
                           </td>
-                          <td className="py-2 text-right font-medium text-gray-900">
+                          <td className="border border-gray-200 px-3 py-2 text-right font-medium text-gray-900">
                             {formatCurrency(item.total)}
                           </td>
                         </tr>

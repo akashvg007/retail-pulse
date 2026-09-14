@@ -22,14 +22,20 @@ const geminiExtractionSchema = z.object({
   billDate: z.string().nullish(),
   items: z.array(z.object({
     name: z.string(),
-    qty: z.number().finite().nonnegative(),
-    unitCost: z.number().finite().nonnegative(),
-    taxRate: z.number().finite().min(0).max(100).default(0),
-    total: z.number().finite().nonnegative().optional(),
+    hsnCode: z.string().nullish(),
+    qty: z.number().nonnegative(),
+    unitCost: z.number().nonnegative(),
+    discountPercentage: z.number().min(0).max(100).nullish(),
+    discountAmount: z.number().nonnegative().nullish(),
+    taxRate: z.number().min(0).max(100).default(0),
+    mrp: z.number().nonnegative().nullish(),
+    mrpDiscount: z.number().min(0).max(100).nullish(),
+    price: z.number().nonnegative().nullish(),
+    total: z.number().nonnegative().optional(),
   })).default([]),
-  subtotal: z.number().finite().nonnegative().nullish(),
-  taxAmount: z.number().finite().nonnegative().nullish(),
-  total: z.number().finite().nonnegative().nullish(),
+  subtotal: z.number().nonnegative().nullish(),
+  taxAmount: z.number().nonnegative().nullish(),
+  total: z.number().nonnegative().nullish(),
 })
 
 const responseSchema = {
@@ -53,12 +59,18 @@ const responseSchema = {
         type: 'object',
         properties: {
           name: { type: 'string' },
+          hsnCode: { type: ['string', 'null'] },
           qty: { type: 'number' },
           unitCost: { type: 'number' },
+          discountPercentage: { type: ['number', 'null'] },
+          discountAmount: { type: ['number', 'null'] },
           taxRate: { type: 'number' },
+          mrp: { type: ['number', 'null'] },
+          mrpDiscount: { type: ['number', 'null'] },
+          price: { type: ['number', 'null'] },
           total: { type: 'number' },
         },
-        required: ['name', 'qty', 'unitCost', 'taxRate', 'total'],
+        required: ['name', 'hsnCode', 'qty', 'unitCost', 'discountPercentage', 'discountAmount', 'taxRate', 'mrp', 'mrpDiscount', 'price', 'total'],
       },
     },
     subtotal: { type: ['number', 'null'] },
@@ -110,6 +122,7 @@ export async function POST(req: NextRequest) {
   const model = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'
   const prompt = `Extract purchase invoice details from this document. Return only the requested JSON fields.
 Use YYYY-MM-DD for billDate when it is clear. Preserve all line items. Set missing values to null, and use 0 only for a clearly zero numeric value.
+For every line item, extract the HSN/SAC code, quantity, purchase rate (unitCost), discount percentage and amount, tax percentage, MRP, MRP discount percentage, selling price, and line total when they are visible. Use price for the post-discount selling price, not the purchase rate. If a discount is shown as a percentage, calculate discountAmount from quantity and unitCost when possible; if only an amount is shown, calculate discountPercentage when possible. Do not infer MRP, discounts, or price from unrelated amounts.
 Calculate total when line items make it possible. Do not invent supplier contact details or prices.`
   const bytes = Buffer.from(await file.arrayBuffer())
 
@@ -157,7 +170,16 @@ Calculate total when line items make it possible. Do not invent supplier contact
       },
       billNumber: parsed.data.billNumber || undefined,
       billDate: parsed.data.billDate || undefined,
-      items: parsed.data.items.map((item) => ({ ...item, total: item.total ?? item.qty * item.unitCost })),
+      items: parsed.data.items.map((item) => ({
+        ...item,
+        hsnCode: item.hsnCode || '',
+        discountPercentage: item.discountPercentage ?? 0,
+        discountAmount: item.discountAmount ?? 0,
+        mrp: item.mrp ?? 0,
+        mrpDiscount: item.mrpDiscount ?? 0,
+        price: item.price ?? item.unitCost,
+        total: item.total ?? item.qty * item.unitCost,
+      })),
       subtotal: parsed.data.subtotal ?? undefined,
       taxAmount: parsed.data.taxAmount ?? undefined,
       total: parsed.data.total ?? undefined,

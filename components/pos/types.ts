@@ -23,12 +23,14 @@ export interface CustomerData {
   name: string
   email?: string
   phone?: string
+  address?: string
 }
 
 export interface CustomerFormData {
   name: string
   email: string
   phone: string
+  address: string
 }
 
 export type PaymentOption = 'online' | 'upi' | 'cash' | 'credit'
