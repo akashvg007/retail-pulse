@@ -19,7 +19,7 @@ export interface IInvoice extends Document {
   staffName?: string
   staffId?: mongoose.Types.ObjectId
   customerId?: mongoose.Types.ObjectId
-  customerSnapshot?: { name: string; email?: string; gstNumber?: string }
+  customerSnapshot?: { name: string; email?: string; address?: string; gstNumber?: string }
   items: InvoiceItem[]
   subtotal: number
   taxAmount: number
@@ -59,6 +59,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     customerSnapshot: {
       name: String,
       email: String,
+      address: String,
       gstNumber: String,
     },
     items: [InvoiceItemSchema],

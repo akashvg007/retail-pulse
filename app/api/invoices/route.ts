@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
   const invoiceItems = items.map((item) => ({
     ...item,
     mrp: item.productId ? productMrp.get(item.productId) ?? item.mrp : item.mrp,
+    total: item.price * item.qty,
   }))
 
   // Compute totals
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
   if (customerId) {
     const customer = await Customer.findOne({ _id: customerId, tenantId: ctx.tenantId }).lean()
     if (customer) {
-      customerSnapshot = { name: customer.name, email: customer.email, gstNumber: customer.gstNumber }
+      customerSnapshot = { name: customer.name, email: customer.email, address: customer.address, gstNumber: customer.gstNumber }
     }
   }
 

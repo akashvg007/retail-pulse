@@ -18,6 +18,9 @@ export interface CartItem {
   qty: number
 }
 
+export type POSQuantityMode = 'buttons' | 'input'
+export type POSPriceMode = 'product' | 'custom'
+
 export interface CustomerData {
   _id: string
   name: string

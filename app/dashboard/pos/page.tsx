@@ -18,7 +18,7 @@ import type { InvoiceData } from '@/app/dashboard/invoices/type'
 const ModalFallback = () => <Skeleton className="h-72 w-full rounded-xl bg-white" />
 const PaymentModal = dynamic(() => import('@/components/pos/PaymentModal').then((m) => m.PaymentModal), { ssr: false, loading: ModalFallback })
 const CustomerModal = dynamic(() => import('@/components/pos/CustomerModal').then((m) => m.CustomerModal), { ssr: false, loading: ModalFallback })
-import type { CartItem, CustomerData, CustomerFormData, PaymentOption, ProductData } from '@/components/pos/types'
+import type { CartItem, CustomerData, CustomerFormData, PaymentOption, ProductData, POSPriceMode, POSQuantityMode } from '@/components/pos/types'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -89,6 +89,9 @@ export default function POSPage() {
     : '/api/products?limit=100'
   const { data, isLoading, mutate: mutateProducts } = useSWR(productsUrl, fetcher)
   const { data: customersResponse, mutate: mutateCustomers } = useSWR('/api/customers?limit=100', fetcher)
+  const { data: settingsResponse } = useSWR('/api/tenants/settings', fetcher)
+  const quantityMode: POSQuantityMode = settingsResponse?.data?.pos?.quantityMode === 'input' ? 'input' : 'buttons'
+  const priceMode: POSPriceMode = settingsResponse?.data?.pos?.priceMode === 'custom' ? 'custom' : 'product'
   const allProductsRaw = useMemo<ProductData[]>(() => (Array.isArray(data?.data) ? data.data : []), [data])
   const allProducts = allProductsRaw.filter((p: ProductData) => p.stockQty > 0)
   const customers: CustomerData[] = Array.isArray(customersResponse?.data) ? customersResponse.data : []
@@ -274,6 +277,16 @@ export default function POSPage() {
     setCart((prev) =>
       prev.map((i) => i._id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)
     )
+  }
+
+  function setQty(id: string, qty: number) {
+    if (!Number.isInteger(qty) || qty < 1) return
+    setCart((prev) => prev.map((item) => item._id === id ? { ...item, qty } : item))
+  }
+
+  function setPrice(id: string, price: number) {
+    if (!Number.isFinite(price) || price < 0) return
+    setCart((prev) => prev.map((item) => item._id === id ? { ...item, price } : item))
   }
 
   function removeFromCart(id: string) {
@@ -587,6 +600,8 @@ export default function POSPage() {
           customerSearch={customerSearch}
           customerApiError={customerApiError}
           paying={paying}
+          quantityMode={quantityMode}
+          priceMode={priceMode}
           onRemoveCustomer={() => {
             setSelectedCustomerId('')
             setCustomerSearch('')
@@ -595,6 +610,8 @@ export default function POSPage() {
           onSelectCustomer={setSelectedCustomerId}
           onCreateCustomer={openCreateCustomer}
           onUpdateQty={updateQty}
+          onSetQty={setQty}
+          onSetPrice={setPrice}
           onRemoveFromCart={removeFromCart}
           onOpenPayment={openPaymentModal}
         />
@@ -636,6 +653,8 @@ export default function POSPage() {
         customerSearch={customerSearch}
         customerApiError={customerApiError}
         paying={paying}
+        quantityMode={quantityMode}
+        priceMode={priceMode}
         onClose={closeDrawer}
         onRemoveCustomer={() => {
           setSelectedCustomerId('')
@@ -645,6 +664,8 @@ export default function POSPage() {
         onSelectCustomer={setSelectedCustomerId}
         onCreateCustomer={openCreateCustomer}
         onUpdateQty={updateQty}
+        onSetQty={setQty}
+        onSetPrice={setPrice}
         onRemoveFromCart={removeFromCart}
         onOpenPayment={() => {
           closeDrawer()

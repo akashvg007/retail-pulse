@@ -12,6 +12,10 @@ const updateSettingsSchema = z.object({
     logo: z.string().optional(),
     taxRate: z.number().optional(),
     currency: z.string().optional(),
+    pos: z.object({
+      quantityMode: z.enum(['buttons', 'input']).optional(),
+      priceMode: z.enum(['product', 'custom']).optional(),
+    }).optional(),
     invoiceDisplay: z.object({
       showCompanyName: z.boolean().optional(),
       showAddress: z.boolean().optional(),
@@ -19,6 +23,7 @@ const updateSettingsSchema = z.object({
       showLogo: z.boolean().optional(),
       showContactDetails: z.boolean().optional(),
       showCustomerDetails: z.boolean().optional(),
+      showCustomerAddress: z.boolean().optional(),
       showItemTax: z.boolean().optional(),
       showTotals: z.boolean().optional(),
       showNotes: z.boolean().optional(),

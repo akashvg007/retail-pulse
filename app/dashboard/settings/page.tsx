@@ -16,6 +16,10 @@ interface SettingsForm {
   logo?: string
   taxRate: number
   currency: string
+  pos: {
+    quantityMode: 'buttons' | 'input'
+    priceMode: 'product' | 'custom'
+  }
   invoiceDisplay: {
     showCompanyName: boolean
     showAddress: boolean
@@ -23,6 +27,7 @@ interface SettingsForm {
     showLogo: boolean
     showContactDetails: boolean
     showCustomerDetails: boolean
+    showCustomerAddress: boolean
     showItemTax: boolean
     showTotals: boolean
     showNotes: boolean
@@ -62,6 +67,10 @@ export default function SettingsPage() {
         logo: data?.logo,
         taxRate: data?.taxRate || 18,
         currency: data?.currency || 'INR',
+        pos: {
+          quantityMode: data?.pos?.quantityMode ?? 'buttons',
+          priceMode: data?.pos?.priceMode ?? 'product',
+        },
         invoiceDisplay: {
           showCompanyName: data?.invoiceDisplay?.showCompanyName ?? true,
           showAddress: data?.invoiceDisplay?.showAddress ?? true,
@@ -69,6 +78,7 @@ export default function SettingsPage() {
           showLogo: data?.invoiceDisplay?.showLogo ?? true,
           showContactDetails: data?.invoiceDisplay?.showContactDetails ?? true,
           showCustomerDetails: data?.invoiceDisplay?.showCustomerDetails ?? true,
+          showCustomerAddress: data?.invoiceDisplay?.showCustomerAddress ?? true,
           showItemTax: data?.invoiceDisplay?.showItemTax ?? true,
           showTotals: data?.invoiceDisplay?.showTotals ?? true,
           showNotes: data?.invoiceDisplay?.showNotes ?? true,
@@ -114,6 +124,7 @@ export default function SettingsPage() {
           logo: data.logo,
           taxRate: data.taxRate,
           currency: data.currency,
+          pos: data.pos,
           invoiceDisplay: data.invoiceDisplay,
           branding: {
             businessLogo: data.logo, // Syncing logo with branding.businessLogo
@@ -203,6 +214,26 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            <div className="space-y-4 border-b pb-6">
+              <h3 className="text-sm font-semibold text-gray-700">Point of Sale</h3>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Quantity entry</label>
+                  <select className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('pos.quantityMode')}>
+                    <option value="buttons">Plus and minus buttons</option>
+                    <option value="input">Direct quantity input</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Selling price entry</label>
+                  <select className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('pos.priceMode')}>
+                    <option value="product">Use product price</option>
+                    <option value="custom">Allow custom price</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Branding */}
             <div className="space-y-4 border-b pb-6">
               <h3 className="text-sm font-semibold text-gray-700">Branding</h3>
@@ -283,6 +314,7 @@ export default function SettingsPage() {
                   ['showLogo', 'Company logo'],
                   ['showContactDetails', 'Phone and email'],
                   ['showCustomerDetails', 'Customer details'],
+                  ['showCustomerAddress', 'Customer address'],
                   ['showItemTax', 'Item tax'],
                   ['showTotals', 'Invoice totals'],
                   ['showNotes', 'Notes'],

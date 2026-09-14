@@ -18,11 +18,17 @@ export interface IInvoiceDisplaySettings {
   showLogo: boolean
   showContactDetails: boolean
   showCustomerDetails: boolean
+  showCustomerAddress: boolean
   showItemTax: boolean
   showTotals: boolean
   showNotes: boolean
   showPaymentTerms: boolean
   showFooter: boolean
+}
+
+export interface IPOSSettings {
+  quantityMode: 'buttons' | 'input'
+  priceMode: 'product' | 'custom'
 }
 
 export interface ITenant extends Document {
@@ -35,6 +41,7 @@ export interface ITenant extends Document {
     address?: string
     taxRate: number
     currency: string
+    pos?: IPOSSettings
     branding?: IBrandingSettings
     invoiceDisplay?: Partial<IInvoiceDisplaySettings>
   }
@@ -56,6 +63,10 @@ const TenantSchema = new Schema<ITenant>(
       address: String,
       taxRate: { type: Number, default: 18 },
       currency: { type: String, default: 'INR' },
+      pos: {
+        quantityMode: { type: String, enum: ['buttons', 'input'], default: 'buttons' },
+        priceMode: { type: String, enum: ['product', 'custom'], default: 'product' },
+      },
       branding: {
         businessLogo: String,
         primaryColor: String,
@@ -73,6 +84,7 @@ const TenantSchema = new Schema<ITenant>(
         showLogo: { type: Boolean, default: true },
         showContactDetails: { type: Boolean, default: true },
         showCustomerDetails: { type: Boolean, default: true },
+        showCustomerAddress: { type: Boolean, default: true },
         showItemTax: { type: Boolean, default: true },
         showTotals: { type: Boolean, default: true },
         showNotes: { type: Boolean, default: true },

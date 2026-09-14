@@ -30,6 +30,7 @@ export default function InvoicePrintPreview({
     showLogo: true,
     showContactDetails: true,
     showCustomerDetails: true,
+    showCustomerAddress: true,
     showItemTax: true,
     showTotals: true,
     showNotes: true,
@@ -42,6 +43,8 @@ export default function InvoicePrintPreview({
     invoice.customerId?.name ?? invoice.customerSnapshot?.name;
   const customerEmail =
     invoice.customerId?.email ?? invoice.customerSnapshot?.email;
+  const customerAddress =
+    invoice.customerId?.address ?? invoice.customerSnapshot?.address;
   const customerGst =
     invoice.customerId?.gstNumber ?? invoice.customerSnapshot?.gstNumber;
   const taxSplit = getInvoiceTaxSplit(invoice);
@@ -50,8 +53,8 @@ export default function InvoicePrintPreview({
     return (
       <div className={`hidden print:block print:mx-auto print:bg-white print:rounded-none print:shadow-none print:border-0 ${template === "standard-a5" ? "invoice-print-a5" : "print:max-w-3xl"}`}>
         <div className="border-b border-gray-200 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex gap-4">
+          <div className="relative flex justify-center">
+            <div className="flex flex-col items-center text-center">
               {logo && (
                 <Image
                   src={logo}
@@ -61,23 +64,20 @@ export default function InvoicePrintPreview({
                   className="max-h-16 w-auto object-contain"
                 />
               )}
-              <div>
-                {display.showCompanyName && <p className="text-lg font-semibold text-gray-900">{businessName}</p>}
-                {display.showAddress && branding?.address && <p className="max-w-xs text-sm text-gray-600">{branding.address}</p>}
-                {display.showGstNumber && branding?.gstNumber && <p className="text-sm text-gray-600">GST: {branding.gstNumber}</p>}
-                {display.showContactDetails && (branding?.phone || branding?.email) && (
-                  <p className="text-sm text-gray-600">{[branding.phone, branding.email].filter(Boolean).join(" | ")}</p>
-                )}
-                <p className="text-2xl font-bold text-gray-900">Invoice</p>
-                <p className="text-sm text-gray-500 mt-1">{invoice.invoiceNo}</p>
-              </div>
-          </div>
-            <div className="text-right text-sm text-gray-600">
+              {display.showCompanyName && <p className="text-lg font-semibold text-gray-900">{businessName}</p>}
+              {display.showAddress && branding?.address && <p className="max-w-xs text-sm text-gray-600">{branding.address}</p>}
+              {display.showGstNumber && branding?.gstNumber && <p className="text-sm text-gray-600">GST: {branding.gstNumber}</p>}
+              {display.showContactDetails && (branding?.phone || branding?.email) && (
+                <p className="text-sm text-gray-600">{[branding.phone, branding.email].filter(Boolean).join(" | ")}</p>
+              )}
+              <p className="text-sm text-gray-500 mt-1">{invoice.invoiceNo}</p>
+            </div>
+            <div className="absolute right-0 top-0 text-right text-sm text-gray-600">
               <p>Issued {formatDate(invoice.createdAt)}</p>
               {invoice.dueDate && <p>Due {formatDate(invoice.dueDate)}</p>}
               {invoice.staffName && <p>Issued by {invoice.staffName}</p>}
             </div>
-        </div>
+          </div>
         </div>
         {display.showCustomerDetails && <div className="py-4 text-sm text-gray-700">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -87,6 +87,7 @@ export default function InvoicePrintPreview({
             {customerName || "Walk-in customer"}
           </p>
           {customerEmail && <p>{customerEmail}</p>}
+          {display.showCustomerAddress && customerAddress && <p>{customerAddress}</p>}
           {customerGst && <p>GST: {customerGst}</p>}
               </div>}
 
@@ -167,8 +168,8 @@ export default function InvoicePrintPreview({
   if (template === "minimal-a4") {
     return (
       <div className="hidden print:block print:mx-auto print:max-w-3xl print:bg-white print:rounded-none print:shadow-none print:border-0">
-        <div className="flex items-end justify-between border-b border-gray-300 pb-3">
-          <div className="flex gap-3">
+        <div className="relative flex justify-center border-b border-gray-300 pb-3">
+          <div className="flex flex-col items-center text-center">
             {logo && (
               <Image
                 src={logo}
@@ -178,25 +179,22 @@ export default function InvoicePrintPreview({
                 className="max-h-12 w-auto object-contain"
               />
             )}
-            <div>
-                {display.showCompanyName && <p className="text-base font-semibold text-gray-900">{businessName}</p>}
-                {display.showAddress && branding?.address && <p className="text-xs text-gray-600">{branding.address}</p>}
-                {display.showGstNumber && branding?.gstNumber && <p className="text-xs text-gray-600">GST: {branding.gstNumber}</p>}
-              <h2 className="text-xl font-bold tracking-tight">
-                {invoice.invoiceNo}
-              </h2>
-              </div>
-            </div>
-          <p className="text-xs text-gray-600">
+            {display.showCompanyName && <p className="text-base font-semibold text-gray-900">{businessName}</p>}
+            {display.showAddress && branding?.address && <p className="text-xs text-gray-600">{branding.address}</p>}
+            {display.showGstNumber && branding?.gstNumber && <p className="text-xs text-gray-600">GST: {branding.gstNumber}</p>}
+            <h2 className="text-xl font-bold tracking-tight">{invoice.invoiceNo}</h2>
+          </div>
+          <p className="absolute right-0 top-0 text-xs text-gray-600">
             {formatDate(invoice.createdAt)}
           </p>
-            </div>
+        </div>
 
         {display.showCustomerDetails && <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-600">
           <div>
             <p className="font-semibold text-gray-900">Customer</p>
             <p>{customerName || "Walk-in customer"}</p>
             {customerEmail && <p>{customerEmail}</p>}
+            {display.showCustomerAddress && customerAddress && <p>{customerAddress}</p>}
           </div>
           <div className="text-right">
             {invoice.dueDate && <p>Due: {formatDate(invoice.dueDate)}</p>}
@@ -276,7 +274,6 @@ export default function InvoicePrintPreview({
           {display.showCompanyName && <p className="text-center text-sm font-bold uppercase">{businessName}</p>}
           {display.showAddress && branding?.address && <p className="text-center">{branding.address}</p>}
           {display.showGstNumber && branding?.gstNumber && <p className="text-center">GST: {branding.gstNumber}</p>}
-          <p className="text-center text-base font-bold">INVOICE</p>
           <p className="text-center">{invoice.invoiceNo}</p>
           <p className="mt-1 text-center">{formatDate(invoice.createdAt)}</p>
           <p className="text-center">Status: {invoice.status.toUpperCase()}</p>
@@ -286,6 +283,7 @@ export default function InvoicePrintPreview({
           {display.showCustomerDetails && <>
             <p className="font-bold">Bill To</p>
             <p>{customerName || "Walk-in customer"}</p>
+            {display.showCustomerAddress && customerAddress && <p>{customerAddress}</p>}
             {customerGst && <p>GST: {customerGst}</p>}
           </>}
 
@@ -371,6 +369,13 @@ export default function InvoicePrintPreview({
         </div>
 
         <div className="my-1 border-t border-dashed border-black" />
+
+        {display.showCustomerDetails && (
+          <div className="mb-1">
+            <p>{customerName || "Walk-in customer"}</p>
+            {display.showCustomerAddress && customerAddress && <p>{customerAddress}</p>}
+          </div>
+        )}
 
         {invoice.items.map((item, i) => (
           <div key={i} className="flex justify-between py-0.5">

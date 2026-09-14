@@ -29,11 +29,13 @@ export interface InvoiceData {
     _id: string;
     name?: string;
     email?: string;
+    address?: string;
     gstNumber?: string;
   } | null;
   customerSnapshot?: {
     name?: string;
     email?: string;
+    address?: string;
     gstNumber?: string;
   } | null;
   items: InvoiceItem[];
@@ -60,6 +62,7 @@ export interface InvoiceData {
       | "showLogo"
       | "showContactDetails"
       | "showCustomerDetails"
+      | "showCustomerAddress"
       | "showItemTax"
       | "showTotals"
       | "showNotes"

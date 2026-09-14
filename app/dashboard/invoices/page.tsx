@@ -8,7 +8,7 @@ import { Send, Eye, CheckCircle2, RotateCcw, Trash, MoreVertical } from 'lucide-
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { Input } from '@/components/ui/Input'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -26,7 +26,6 @@ interface InvoiceRow {
 
 export default function InvoicesPage() {
   const [search, setSearch] = useState('')
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const searchParam = search.trim() ? `&search=${encodeURIComponent(search.trim())}` : ''
   const invoicesKey = `/api/invoices?limit=50${searchParam}`
   const { data, isLoading } = useSWR(invoicesKey, fetcher)
@@ -92,72 +91,13 @@ export default function InvoicesPage() {
             )},
             { key: 'createdAt',from:'invoice', label: 'Date', render: (v) => formatDate(v) },
             { key: '_id',from:'invoice', label: '', render: (id, row) => (
-              <div className="relative flex justify-end">
-                <button
-                  aria-expanded={openMenuId === id}
-                  aria-haspopup="menu"
-                  className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-                  onClick={() => setOpenMenuId(openMenuId === id ? null : id)}
-                  title="Invoice actions"
-                  type="button"
-                >
-                  <MoreVertical size={18} />
-                </button>
-                {openMenuId === id && (
-                  <div
-                    aria-label="Invoice actions"
-                    className="absolute right-0 top-8 z-10 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
-                    role="menu"
-                  >
-                    <Link
-                      className="flex items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      href={`/dashboard/invoices/${id}`}
-                      onClick={() => setOpenMenuId(null)}
-                      prefetch={false}
-                      role="menuitem"
-                    >
-                      <Eye size={14} /> View invoice
-                    </Link>
-                    {row.status === 'draft' && (
-                      <button
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                        onClick={() => { setOpenMenuId(null); sendInvoice(id) }}
-                        role="menuitem"
-                        type="button"
-                      >
-                        <Send size={14} /> Send invoice
-                      </button>
-                    )}
-                    <button
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      onClick={() => { setOpenMenuId(null); togglePaidStatus(id, row.status) }}
-                      role="menuitem"
-                      type="button"
-                    >
-                      {row.status === 'paid' ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
-                      {row.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
-                    </button>
-                    {row.inventoryDeductedAt && !row.refundedAt && (
-                      <button
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                        onClick={() => { setOpenMenuId(null); refundInvoice(id) }}
-                        role="menuitem"
-                        type="button"
-                      >
-                        <RotateCcw size={14} /> Return / refund
-                      </button>
-                    )}
-                    <button
-                      className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                      onClick={() => { setOpenMenuId(null); deleteInvoice(id) }}
-                      role="menuitem"
-                      type="button"
-                    >
-                      <Trash size={14} /> Delete invoice
-                    </button>
-                  </div>
-                )}
-              </div>
+              <InvoiceRowActions
+                row={row}
+                onDelete={deleteInvoice}
+                onRefund={refundInvoice}
+                onSend={sendInvoice}
+                onTogglePaid={togglePaidStatus}
+              />
             )},
           ]}
           data={invoices}
@@ -166,6 +106,130 @@ export default function InvoicesPage() {
         />
       </div>
     </FeatureGate>
+  )
+}
+
+function InvoiceRowActions({
+  row,
+  onDelete,
+  onRefund,
+  onSend,
+  onTogglePaid,
+}: {
+  row: InvoiceRow
+  onDelete: (id: string) => Promise<void>
+  onRefund: (id: string) => Promise<void>
+  onSend: (id: string) => Promise<void>
+  onTogglePaid: (id: string, status: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [menuPosition, setMenuPosition] = useState<{ bottom: number; right: number } | null>(null)
+  const actionsRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    function updateMenuPosition() {
+      if (!triggerRef.current) return
+      const rect = triggerRef.current.getBoundingClientRect()
+      setMenuPosition({
+        bottom: window.innerHeight - rect.top + 8,
+        right: window.innerWidth - rect.right,
+      })
+    }
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+
+    updateMenuPosition()
+    document.addEventListener('mousedown', handleOutsideClick)
+    window.addEventListener('resize', updateMenuPosition)
+    window.addEventListener('scroll', updateMenuPosition, true)
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      window.removeEventListener('resize', updateMenuPosition)
+      window.removeEventListener('scroll', updateMenuPosition, true)
+    }
+  }, [open])
+
+  function closeAndRun(action: () => void) {
+    setOpen(false)
+    action()
+  }
+
+  return (
+    <div ref={actionsRef} className="relative flex justify-end">
+      <button
+        ref={triggerRef}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+        onClick={() => setOpen((current) => !current)}
+        title="Invoice actions"
+        type="button"
+      >
+        <MoreVertical size={18} />
+      </button>
+      {open && (
+        <div
+          aria-label="Invoice actions"
+          className="fixed z-50 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
+          role="menu"
+          style={menuPosition ? { bottom: menuPosition.bottom, right: menuPosition.right } : undefined}
+        >
+          <Link
+            className="flex items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            href={`/dashboard/invoices/${row._id}`}
+            onClick={() => setOpen(false)}
+            prefetch={false}
+            role="menuitem"
+          >
+            <Eye size={14} /> View invoice
+          </Link>
+          {row.status === 'draft' && (
+            <button
+              className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              onClick={() => closeAndRun(() => void onSend(row._id))}
+              role="menuitem"
+              type="button"
+            >
+              <Send size={14} /> Send invoice
+            </button>
+          )}
+          <button
+            className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={() => closeAndRun(() => void onTogglePaid(row._id, row.status))}
+            role="menuitem"
+            type="button"
+          >
+            {row.status === 'paid' ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
+            {row.status === 'paid' ? 'Mark unpaid' : 'Mark paid'}
+          </button>
+          {row.inventoryDeductedAt && !row.refundedAt && (
+            <button
+              className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              onClick={() => closeAndRun(() => void onRefund(row._id))}
+              role="menuitem"
+              type="button"
+            >
+              <RotateCcw size={14} /> Return / refund
+            </button>
+          )}
+          <button
+            className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+            onClick={() => closeAndRun(() => void onDelete(row._id))}
+            role="menuitem"
+            type="button"
+          >
+            <Trash size={14} /> Delete invoice
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

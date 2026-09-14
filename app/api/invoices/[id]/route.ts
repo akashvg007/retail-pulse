@@ -60,7 +60,7 @@ export async function GET(
   await connectDB()
   const { id } = await params
   const invoice = await Invoice.findOne({ _id: id, tenantId: ctx.tenantId })
-    .populate('customerId', 'name email phone gstNumber')
+    .populate('customerId', 'name email phone address gstNumber')
     .populate('tenantId', 'name settings')
     .lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -94,6 +94,7 @@ export async function PATCH(
         ? {
             name: customer.name,
             email: customer.email,
+            address: customer.address,
             gstNumber: customer.gstNumber,
           }
         : undefined
@@ -125,7 +126,7 @@ export async function PATCH(
     update,
     { new: true }
   )
-    .populate('customerId', 'name email phone gstNumber')
+    .populate('customerId', 'name email phone address gstNumber')
     .populate('tenantId', 'name settings')
     .lean()
   if (!invoice) return NextResponse.json({ error: 'Not found' }, { status: 404 })

@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { formatCurrency } from '@/lib/utils'
 import { ChevronDown, Minus, Plus, ShoppingCart, Trash2, X } from 'lucide-react'
-import type { CartItem, CustomerData } from './types'
+import type { CartItem, CustomerData, POSPriceMode, POSQuantityMode } from './types'
 
 interface MobileCartDrawerProps {
   open: boolean
@@ -19,12 +19,16 @@ interface MobileCartDrawerProps {
   customerSearch: string
   customerApiError: string
   paying: boolean
+  quantityMode: POSQuantityMode
+  priceMode: POSPriceMode
   onClose: () => void
   onRemoveCustomer: () => void
   onSearchCustomer: (value: string) => void
   onSelectCustomer: (customerId: string) => void
   onCreateCustomer: () => void
   onUpdateQty: (id: string, delta: number) => void
+  onSetQty: (id: string, qty: number) => void
+  onSetPrice: (id: string, price: number) => void
   onRemoveFromCart: (id: string) => void
   onOpenPayment: () => void
 }
@@ -44,12 +48,16 @@ export function MobileCartDrawer({
   customerSearch,
   customerApiError,
   paying,
+  quantityMode,
+  priceMode,
   onClose,
   onRemoveCustomer,
   onSearchCustomer,
   onSelectCustomer,
   onCreateCustomer,
   onUpdateQty,
+  onSetQty,
+  onSetPrice,
   onRemoveFromCart,
   onOpenPayment,
 }: MobileCartDrawerProps) {
@@ -135,15 +143,42 @@ export function MobileCartDrawer({
               </div>
               <div className="flex items-center justify-between mt-1.5">
                 <div className="flex items-center gap-2">
-                  <button onClick={() => onUpdateQty(item._id, -1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
-                    <Minus size={12} />
-                  </button>
-                  <span className="text-sm w-5 text-center">{item.qty}</span>
-                  <button onClick={() => onUpdateQty(item._id, 1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
-                    <Plus size={12} />
-                  </button>
+                  {quantityMode === 'input' ? (
+                    <Input
+                      aria-label={`Quantity for ${item.name}`}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={item.qty}
+                      onChange={(event) => onSetQty(item._id, Number(event.target.value))}
+                      className="w-16 px-2 py-1 text-center"
+                    />
+                  ) : (
+                    <>
+                      <button onClick={() => onUpdateQty(item._id, -1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
+                        <Minus size={12} />
+                      </button>
+                      <span className="w-5 text-center text-sm">{item.qty}</span>
+                      <button onClick={() => onUpdateQty(item._id, 1)} className="rounded border border-gray-200 p-0.5 text-gray-500 hover:bg-gray-50">
+                        <Plus size={12} />
+                      </button>
+                    </>
+                  )}
                 </div>
-                <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.price * item.qty)}</p>
+                <div className="text-right">
+                  {priceMode === 'custom' && (
+                    <Input
+                      aria-label={`Selling price for ${item.name}`}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.price}
+                      onChange={(event) => onSetPrice(item._id, Number(event.target.value))}
+                      className="mb-1 w-24 px-2 py-1 text-right"
+                    />
+                  )}
+                  <p className="text-sm font-semibold text-gray-700">{formatCurrency(item.price * item.qty)}</p>
+                </div>
               </div>
             </div>
           ))}
