@@ -4,6 +4,55 @@ import { requireAuth } from '@/lib/tenant'
 import { Tenant } from '@/models/Tenant'
 import { z } from 'zod'
 
+const invoiceTemplateSectionSchema = z.enum([
+  'branding',
+  'metadata',
+  'customer',
+  'items',
+  'totals',
+  'notes',
+  'savings',
+])
+
+const invoiceTemplateElementSchema = z.object({
+  id: z.string().min(1).max(80),
+  section: invoiceTemplateSectionSchema,
+  x: z.number().min(0).max(100),
+  y: z.number().min(0).max(100),
+  width: z.number().gt(0).max(100),
+  height: z.number().gt(0).max(100),
+  zIndex: z.number().int().min(0).max(1000),
+}).superRefine((element, context) => {
+  if (element.x + element.width > 100) {
+    context.addIssue({ code: 'custom', path: ['width'], message: 'Element exceeds canvas width' })
+  }
+  if (element.y + element.height > 100) {
+    context.addIssue({ code: 'custom', path: ['height'], message: 'Element exceeds canvas height' })
+  }
+})
+
+const invoiceTemplateLayoutSchema = z.object({
+  version: z.literal(1),
+  customized: z.boolean(),
+  elements: z.array(invoiceTemplateElementSchema).max(20),
+}).superRefine((layout, context) => {
+  const ids = layout.elements.map((element) => element.id)
+  if (new Set(ids).size !== ids.length) {
+    context.addIssue({ code: 'custom', path: ['elements'], message: 'Element IDs must be unique' })
+  }
+})
+
+const invoiceTemplateSchema = z.object({
+  version: z.literal(1),
+  layouts: z.object({
+    'standard-a4': invoiceTemplateLayoutSchema.optional(),
+    'standard-a5': invoiceTemplateLayoutSchema.optional(),
+    'minimal-a4': invoiceTemplateLayoutSchema.optional(),
+    'thermal-detailed': invoiceTemplateLayoutSchema.optional(),
+    'thermal-compact': invoiceTemplateLayoutSchema.optional(),
+  }),
+})
+
 const updateSettingsSchema = z.object({
   name: z.string().trim().min(1).optional(),
   settings: z.object({
@@ -29,7 +78,9 @@ const updateSettingsSchema = z.object({
       showNotes: z.boolean().optional(),
       showPaymentTerms: z.boolean().optional(),
       showFooter: z.boolean().optional(),
+      showTaxSplit: z.boolean().optional(),
     }).optional(),
+    invoiceTemplate: invoiceTemplateSchema.optional(),
     branding: z.object({
       businessLogo: z.string().optional(),
       primaryColor: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),

@@ -6,6 +6,40 @@ export type InvoicePrintTemplate =
   | "thermal-detailed"
   | "thermal-compact";
 
+export type InvoiceTemplateSection =
+  | "branding"
+  | "metadata"
+  | "customer"
+  | "items"
+  | "totals"
+  | "notes"
+  | "savings";
+
+export interface InvoiceTemplateElement {
+  id: string;
+  section: InvoiceTemplateSection;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+}
+
+export interface InvoiceTemplateLayout {
+  version: 1;
+  customized: boolean;
+  elements: InvoiceTemplateElement[];
+}
+
+export type InvoiceTemplateLayouts = Partial<
+  Record<InvoicePrintTemplate, InvoiceTemplateLayout>
+>;
+
+export interface InvoiceTemplateSettings {
+  version: 1;
+  layouts: InvoiceTemplateLayouts;
+}
+
 export interface InvoiceItem {
   productId?: string;
   name: string;
@@ -55,6 +89,7 @@ export interface InvoiceData {
     email?: string;
     paymentTerms?: string;
     invoiceFooter?: string;
+    invoiceTemplate?: InvoiceTemplateSettings;
     invoiceDisplay?: Partial<Record<
       | "showCompanyName"
       | "showAddress"
@@ -67,10 +102,18 @@ export interface InvoiceData {
       | "showTotals"
       | "showNotes"
       | "showPaymentTerms"
-      | "showFooter",
+      | "showFooter"
+      | "showTaxSplit",
       boolean
     >>;
   };
+}
+
+export function getInvoiceSavings(invoice: Pick<InvoiceData, "items">) {
+  return invoice.items.reduce((total, item) => {
+    const savingsPerItem = Math.max(0, (item.mrp ?? 0) - item.price);
+    return total + savingsPerItem * item.qty;
+  }, 0);
 }
 
 export function getInvoiceTaxSplit(invoice: Pick<InvoiceData, "subtotal" | "taxAmount">) {

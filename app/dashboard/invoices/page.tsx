@@ -8,7 +8,8 @@ import { Send, Eye, CheckCircle2, RotateCcw, Trash, MoreVertical } from 'lucide-
 import { formatCurrency, formatDate } from '@/lib/utils'
 import Link from 'next/link'
 import { Input } from '@/components/ui/Input'
-import { useEffect, useRef, useState } from 'react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { useState } from 'react'
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
@@ -123,38 +124,6 @@ function InvoiceRowActions({
   onTogglePaid: (id: string, status: string) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
-  const [menuPosition, setMenuPosition] = useState<{ bottom: number; right: number } | null>(null)
-  const actionsRef = useRef<HTMLDivElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-
-    function updateMenuPosition() {
-      if (!triggerRef.current) return
-      const rect = triggerRef.current.getBoundingClientRect()
-      setMenuPosition({
-        bottom: window.innerHeight - rect.top + 8,
-        right: window.innerWidth - rect.right,
-      })
-    }
-
-    function handleOutsideClick(event: MouseEvent) {
-      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-
-    updateMenuPosition()
-    document.addEventListener('mousedown', handleOutsideClick)
-    window.addEventListener('resize', updateMenuPosition)
-    window.addEventListener('scroll', updateMenuPosition, true)
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick)
-      window.removeEventListener('resize', updateMenuPosition)
-      window.removeEventListener('scroll', updateMenuPosition, true)
-    }
-  }, [open])
 
   function closeAndRun(action: () => void) {
     setOpen(false)
@@ -162,25 +131,21 @@ function InvoiceRowActions({
   }
 
   return (
-    <div ref={actionsRef} className="relative flex justify-end">
-      <button
-        ref={triggerRef}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-        onClick={() => setOpen((current) => !current)}
-        title="Invoice actions"
-        type="button"
-      >
-        <MoreVertical size={18} />
-      </button>
-      {open && (
-        <div
-          aria-label="Invoice actions"
-          className="fixed z-50 min-w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg"
-          role="menu"
-          style={menuPosition ? { bottom: menuPosition.bottom, right: menuPosition.right } : undefined}
-        >
+    <div className="flex justify-end">
+      <Popover onOpenChange={setOpen} open={open}>
+        <PopoverTrigger
+          render={
+            <button
+              aria-label="Invoice actions"
+              className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              title="Invoice actions"
+              type="button"
+            >
+              <MoreVertical size={18} />
+            </button>
+          }
+        />
+        <PopoverContent align="end" aria-label="Invoice actions" className="w-auto min-w-44 p-1" role="menu" sideOffset={8}>
           <Link
             className="flex items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             href={`/dashboard/invoices/${row._id}`}
@@ -227,8 +192,8 @@ function InvoiceRowActions({
           >
             <Trash size={14} /> Delete invoice
           </button>
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   )
 }

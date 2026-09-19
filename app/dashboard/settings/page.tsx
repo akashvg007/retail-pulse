@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { uploadImageToCloudinary } from '@/util/common.util'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { SettingsPageSkeleton } from '@/components/loading/PageSkeletons'
+import Link from 'next/link'
 
 interface SettingsForm {
   name?: string
@@ -33,6 +34,7 @@ interface SettingsForm {
     showNotes: boolean
     showPaymentTerms: boolean
     showFooter: boolean
+    showTaxSplit: boolean
   }
   branding?: {
     businessLogo?: string
@@ -84,6 +86,7 @@ export default function SettingsPage() {
           showNotes: data?.invoiceDisplay?.showNotes ?? true,
           showPaymentTerms: data?.invoiceDisplay?.showPaymentTerms ?? true,
           showFooter: data?.invoiceDisplay?.showFooter ?? true,
+          showTaxSplit: data?.invoiceDisplay?.showTaxSplit ?? true,
         },
           branding: {
           ...data?.branding,
@@ -305,7 +308,15 @@ export default function SettingsPage() {
 
             {/* Invoice Settings */}
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-700">Invoice Settings</h3>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-sm font-semibold text-gray-700">Invoice Settings</h3>
+                <Link
+                  href="/dashboard/settings/invoice-template"
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                >
+                  Open template editor
+                </Link>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {([
                   ['showCompanyName', 'Company name'],
@@ -326,6 +337,16 @@ export default function SettingsPage() {
                     {label}
                   </label>
                 ))}
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Tax display</label>
+                <select
+                  className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm sm:max-w-sm"
+                  {...register('invoiceDisplay.showTaxSplit', { setValueAs: (value) => value === 'true' })}
+                >
+                  <option value="true">Split tax into CGST and SGST</option>
+                  <option value="false">Show one GST total</option>
+                </select>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Payment Terms</label>

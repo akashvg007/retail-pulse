@@ -26,6 +26,10 @@ function withBusinessName<T extends { tenantId?: unknown }>(invoice: T) {
           invoiceFooter?: string
         }
         invoiceDisplay?: Record<string, boolean>
+        invoiceTemplate?: {
+          version: 1
+          layouts: Record<string, unknown>
+        }
       }
     } | null
 
@@ -44,6 +48,7 @@ function withBusinessName<T extends { tenantId?: unknown }>(invoice: T) {
       paymentTerms: settings?.branding?.paymentTerms,
       invoiceFooter: settings?.branding?.invoiceFooter,
       invoiceDisplay: settings?.invoiceDisplay,
+      invoiceTemplate: settings?.invoiceTemplate,
     },
   }
 }

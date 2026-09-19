@@ -24,6 +24,37 @@ export interface IInvoiceDisplaySettings {
   showNotes: boolean
   showPaymentTerms: boolean
   showFooter: boolean
+  showTaxSplit: boolean
+}
+
+export type InvoiceTemplateSection =
+  | 'branding'
+  | 'metadata'
+  | 'customer'
+  | 'items'
+  | 'totals'
+  | 'notes'
+  | 'savings'
+
+export interface IInvoiceTemplateElement {
+  id: string
+  section: InvoiceTemplateSection
+  x: number
+  y: number
+  width: number
+  height: number
+  zIndex: number
+}
+
+export interface IInvoiceTemplateLayout {
+  version: 1
+  customized: boolean
+  elements: IInvoiceTemplateElement[]
+}
+
+export interface IInvoiceTemplateSettings {
+  version: 1
+  layouts: Partial<Record<'standard-a4' | 'standard-a5' | 'minimal-a4' | 'thermal-detailed' | 'thermal-compact', IInvoiceTemplateLayout>>
 }
 
 export interface IPOSSettings {
@@ -44,6 +75,7 @@ export interface ITenant extends Document {
     pos?: IPOSSettings
     branding?: IBrandingSettings
     invoiceDisplay?: Partial<IInvoiceDisplaySettings>
+    invoiceTemplate?: IInvoiceTemplateSettings
   }
   invoiceCounter: number
   purchaseOrderCounter: number
@@ -90,6 +122,11 @@ const TenantSchema = new Schema<ITenant>(
         showNotes: { type: Boolean, default: true },
         showPaymentTerms: { type: Boolean, default: true },
         showFooter: { type: Boolean, default: true },
+        showTaxSplit: { type: Boolean, default: true },
+      },
+      invoiceTemplate: {
+        version: { type: Number, default: 1 },
+        layouts: { type: Schema.Types.Mixed, default: {} },
       },
     },
     invoiceCounter: { type: Number, default: 0 },

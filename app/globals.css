@@ -131,8 +131,9 @@
 
 @media print {
   .invoice-print-a5 {
-    width: 148mm;
-    max-width: 148mm;
+    width: 100%;
+    padding-left: 1mm;
+    padding-right: 1mm;
     box-sizing: border-box;
   }
 

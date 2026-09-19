@@ -34,6 +34,7 @@ export default function InvoiceDetailPage() {
   const [returnQuantities, setReturnQuantities] = useState<Record<number, string>>({});
   const invoice = data?.data as InvoiceData | undefined;
   const taxSplit = invoice ? getInvoiceTaxSplit(invoice) : null;
+  const showTaxSplit = invoice?.tenantBranding?.invoiceDisplay?.showTaxSplit ?? true;
 
   async function sendInvoice() {
     await fetch(`/api/invoices/${id}/send`, { method: "POST" });
@@ -273,7 +274,7 @@ export default function InvoiceDetailPage() {
                     <span>Subtotal</span>
                     <span>{formatCurrency(invoice.subtotal)}</span>
                   </div>
-                  {invoice.taxAmount > 0 && taxSplit && (
+                  {invoice.taxAmount > 0 && taxSplit && (showTaxSplit ? (
                     <>
                       <div className="flex justify-between text-gray-600">
                         <span>CGST ({taxSplit.rate.toFixed(2)}%)</span>
@@ -284,7 +285,12 @@ export default function InvoiceDetailPage() {
                         <span>{formatCurrency(taxSplit.amount)}</span>
                       </div>
                     </>
-                  )}
+                  ) : (
+                    <div className="flex justify-between text-gray-600">
+                      <span>GST ({(taxSplit.rate * 2).toFixed(2)}%)</span>
+                      <span>{formatCurrency(invoice.taxAmount)}</span>
+                    </div>
+                  ))}
                   {invoice.discount > 0 && (
                     <div className="flex justify-between text-gray-600">
                       <span>Discount</span>
