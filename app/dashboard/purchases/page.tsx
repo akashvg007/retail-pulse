@@ -15,8 +15,9 @@ import { formatCurrency, formatDate } from '@/lib/utils'
 import type { OcrExtractedData } from '@/lib/ocr/types'
 import { OCR_AUTOFILL_CONFIDENCE_THRESHOLD } from '@/lib/ocr/types'
 import { useFeature } from '@/contexts/FeatureContext'
-import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle, Eye, Boxes, MoreVertical } from 'lucide-react'
+import { Plus, Search, Send, CheckCircle2, PackageCheck, XCircle, Eye, Boxes, MoreVertical, Pencil, Printer } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
+import PurchasePrintPreview from '@/components/purchases/PurchasePrintPreview'
 
 type PurchaseStatus = 'draft' | 'approved' | 'sent' | 'partially_received' | 'received' | 'cancelled'
 
@@ -53,19 +54,36 @@ interface ProductOption {
 interface PurchaseRow {
   _id: string
   poNo: string
-  supplierSnapshot: { name: string; code: string }
+  supplierId?: string
+  supplierSnapshot: { name: string; code: string; email?: string; phone?: string; gstNumber?: string }
   invoiceNo: string
   invoiceDate: string
   paymentTerms: string
   total: number
   subtotal: number
   taxAmount: number
+  sellingPriceTotal?: number
+  roundingAdjustment?: number
+  notes?: string
   paymentStatus: string
   status: PurchaseStatus
   createdAt: string
   expectedDeliveryDate?: string
   inventoryPostedAt?: string
-  items: Array<{ name: string; hsnCode?: string; qty: number; unitCost?: number; discountPercentage?: number; discountAmount?: number; taxRate?: number; mrp?: number; mrpDiscount?: number; price?: number; total?: number }>
+  items: Array<{
+    productId?: string
+    name: string
+    hsnCode?: string
+    qty: number
+    unitCost?: number
+    discountPercentage?: number
+    discountAmount?: number
+    taxRate?: number
+    mrp?: number
+    mrpDiscount?: number
+    price?: number
+    total?: number
+  }>
 }
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
@@ -73,6 +91,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json())
 export default function PurchasesPage() {
   const billOcrEnabled = useFeature('purchase_bill_ocr')
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [status, setStatus] = useState('')
   const [searchInput, setSearchInput] = useState('')
@@ -132,6 +151,7 @@ export default function PurchasesPage() {
   }, [purchases])
 
   function resetForm() {
+    setEditingId(null)
     setSupplierId('')
     setInvoiceNo('')
     setInvoiceDate('')
@@ -153,6 +173,58 @@ export default function PurchasesPage() {
   function openCreate() {
     resetForm()
     setOpen(true)
+  }
+
+  function populateFormFromPurchase(purchase: PurchaseRow) {
+    setEditingId(purchase._id)
+    setSupplierId(typeof purchase.supplierId === 'string' ? purchase.supplierId : String(purchase.supplierId ?? ''))
+    setInvoiceNo(purchase.invoiceNo || '')
+    setInvoiceDate(toDateInputValue(purchase.invoiceDate))
+    setPaymentTerms(purchase.paymentTerms || 'Cash')
+    setExpectedDeliveryDate(toDateInputValue(purchase.expectedDeliveryDate))
+    setNotes(purchase.notes || '')
+    setRoundingAdjustment(Number(purchase.roundingAdjustment ?? 0))
+    setItems(
+      purchase.items.length > 0
+        ? purchase.items.map((item) => ({
+          productId: item.productId,
+          name: item.name || '',
+          hsnCode: item.hsnCode || '',
+          qty: Number(item.qty) || 1,
+          unitCost: Number(item.unitCost) || 0,
+          discountPercentage: Number(item.discountPercentage) || 0,
+          discountAmount: Number(item.discountAmount) || 0,
+          taxRate: Number(item.taxRate) || 0,
+          mrp: Number(item.mrp) || 0,
+          mrpDiscount: Number(item.mrpDiscount) || 0,
+          price: Number(item.price) || 0,
+        }))
+        : [createEmptyItem()]
+    )
+    setOcrBusy(false)
+    setOcrProgress(0)
+    setOcrStage('Preparing OCR engine')
+    setOcrError(null)
+    setOcrFileName(null)
+    setOcrData(null)
+    setCreatingSupplierDraft(false)
+    setError(null)
+  }
+
+  async function openEdit(id: string) {
+    setError(null)
+    try {
+      const response = await fetch(`/api/purchases/${id}`)
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to load purchase order')
+      }
+      const purchase = result?.data as PurchaseRow
+      populateFormFromPurchase(purchase)
+      setOpen(true)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load purchase order')
+    }
   }
 
   function updateItem(index: number, field: keyof PurchaseItemForm, value: string) {
@@ -339,7 +411,7 @@ export default function PurchasesPage() {
     }))
   }
 
-  async function createPurchaseOrder() {
+  async function savePurchaseOrder() {
     setSaving(true)
     setError(null)
     try {
@@ -351,7 +423,7 @@ export default function PurchasesPage() {
         expectedDeliveryDate: expectedDeliveryDate || undefined,
         notes: notes || undefined,
         roundingAdjustment,
-        ocrMeta: ocrData
+        ocrMeta: !editingId && ocrData
           ? {
             confidence: Number(ocrData.confidence.toFixed(2)),
             extractedAt: new Date().toISOString(),
@@ -365,21 +437,28 @@ export default function PurchasesPage() {
         })),
       }
 
-      const response = await fetch('/api/purchases', {
-        method: 'POST',
+      const response = await fetch(editingId ? `/api/purchases/${editingId}` : '/api/purchases', {
+        method: editingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(result?.error?.formErrors?.[0] || result?.error || 'Unable to create purchase order')
+        throw new Error(
+          result?.error?.formErrors?.[0]
+          || (typeof result?.error === 'string' ? result.error : null)
+          || (editingId ? 'Unable to update purchase order' : 'Unable to create purchase order')
+        )
       }
 
       mutate(purchasesQuery)
+      if (editingId && selectedPurchase?._id === editingId && result?.data) {
+        setSelectedPurchase(result.data as PurchaseRow)
+      }
       setOpen(false)
       resetForm()
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Unable to create purchase order')
+      setError(submitError instanceof Error ? submitError.message : 'Unable to save purchase order')
     } finally {
       setSaving(false)
     }
@@ -425,6 +504,23 @@ export default function PurchasesPage() {
     }
   }
 
+  async function printPurchase(id: string) {
+    setError(null)
+    try {
+      if (selectedPurchase?._id !== id) {
+        const response = await fetch(`/api/purchases/${id}`)
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          throw new Error(result?.error || 'Unable to load purchase order')
+        }
+        setSelectedPurchase(result?.data as PurchaseRow)
+      }
+      window.setTimeout(() => window.print(), 50)
+    } catch (printError) {
+      setError(printError instanceof Error ? printError.message : 'Unable to print purchase order')
+    }
+  }
+
   async function runInventoryPost(id: string) {
     setActioningId(id)
     setError(null)
@@ -457,7 +553,7 @@ export default function PurchasesPage() {
 
   return (
     <FeatureGate feature="purchase_management" fallback={<LockedPage feature="Purchase Management" />}>
-      <div className="space-y-4 p-4 sm:p-6">
+      <div className="space-y-4 p-4 sm:p-6 print:hidden">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Purchases</h1>
@@ -570,6 +666,8 @@ export default function PurchasesPage() {
                   row={row}
                   onAction={runAction}
                   onView={openView}
+                  onEdit={openEdit}
+                  onPrint={printPurchase}
                   onInventoryPost={runInventoryPost}
                   busyId={actioningId}
                 />
@@ -607,12 +705,16 @@ export default function PurchasesPage() {
 
       <Modal
         open={open}
-        onClose={() => setOpen(false)}
-        title="Create purchase order"
+        onClose={() => {
+          setOpen(false)
+          resetForm()
+        }}
+        title={editingId ? 'Edit purchase order' : 'Create purchase order'}
         className="min-w-[75vw] max-w-[100vw]"
+        wrapperClassName="print:hidden"
       >
         <div className="space-y-4">
-          {billOcrEnabled ? (
+          {billOcrEnabled && !editingId ? (
             <BillImageInput
               busy={ocrBusy}
               fileName={ocrFileName}
@@ -629,7 +731,7 @@ export default function PurchasesPage() {
             />
           ) : null}
 
-          {billOcrEnabled && ocrBusy ? (
+          {billOcrEnabled && !editingId && ocrBusy ? (
             <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-3 text-xs text-indigo-800">
               <div className="mb-2 flex items-center justify-between">
                 <span>Extracting bill data...</span>
@@ -645,7 +747,7 @@ export default function PurchasesPage() {
             </div>
           ) : null}
 
-          {billOcrEnabled && ocrData ? (
+          {billOcrEnabled && !editingId && ocrData ? (
             <OcrReviewPanel
               data={ocrData}
               creatingSupplierDraft={creatingSupplierDraft}
@@ -764,16 +866,25 @@ export default function PurchasesPage() {
               onChange={(event) => setRoundingAdjustment(Number(event.target.value) || 0)}
             />
             <p className="text-xs text-indigo-700">Use a negative value to round down or a positive value to round up.</p>
-            <div>Order total: {formatCurrency(items.reduce((sum, item) => sum + calculateLineTotal(item), 0) + roundingAdjustment)}</div>
+            <div>Purchase bill total: {formatCurrency(items.reduce((sum, item) => sum + calculateLineTotal(item), 0) + roundingAdjustment)}</div>
+            <div>Selling price total: {formatCurrency(items.reduce((sum, item) => sum + item.price * item.qty, 0))}</div>
           </div>
 
           <ModalFooter
             primaryButton={{
-              label: saving ? 'Creating…' : 'Create purchase order',
-              onClick: createPurchaseOrder,
+              label: saving
+                ? (editingId ? 'Saving…' : 'Creating…')
+                : (editingId ? 'Save changes' : 'Create purchase order'),
+              onClick: savePurchaseOrder,
               disabled: saving,
             }}
-            secondaryButton={{ label: 'Cancel', onClick: () => setOpen(false) }}
+            secondaryButton={{
+              label: 'Cancel',
+              onClick: () => {
+                setOpen(false)
+                resetForm()
+              },
+            }}
           />
         </div>
       </Modal>
@@ -786,7 +897,8 @@ export default function PurchasesPage() {
           setViewError(null)
         }}
         title={selectedPurchase ? `Purchase order ${selectedPurchase.poNo}` : 'Purchase order'}
-        className="max-w-3xl"
+        className="min-w-[75vw] max-w-[100vw]"
+        wrapperClassName="print:hidden"
       >
         {viewLoading ? <Skeleton className="h-48 w-full rounded-lg bg-gray-100" /> : null}
         {viewError ? (
@@ -794,6 +906,24 @@ export default function PurchasesPage() {
         ) : null}
         {selectedPurchase ? (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {selectedPurchase.status !== 'cancelled' ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setViewOpen(false)
+                    void openEdit(selectedPurchase._id)
+                  }}
+                >
+                  <Pencil size={14} /> Edit
+                </Button>
+              ) : null}
+              <Button size="sm" variant="secondary" onClick={() => void printPurchase(selectedPurchase._id)}>
+                <Printer size={14} /> Print
+              </Button>
+            </div>
+
             <div className="grid grid-cols-1 gap-3 rounded-lg border border-gray-200 p-3 text-sm sm:grid-cols-3">
               <div>
                 <p className="text-xs text-gray-500">Supplier</p>
@@ -805,7 +935,7 @@ export default function PurchasesPage() {
                 <Badge variant={purchaseStatusBadge(selectedPurchase.status)}>{formatStatus(selectedPurchase.status)}</Badge>
               </div>
               <div>
-                <p className="text-xs text-gray-500">Total</p>
+                <p className="text-xs text-gray-500">Purchase bill total</p>
                 <p className="font-semibold text-gray-900">{formatCurrency(selectedPurchase.total)}</p>
                 <p className="text-xs text-gray-500">Created {formatDate(selectedPurchase.createdAt)}</p>
               </div>
@@ -821,6 +951,7 @@ export default function PurchasesPage() {
                       <th className="px-3 py-2">HSN</th>
                       <th className="px-3 py-2">Qty</th>
                       <th className="px-3 py-2">Unit cost</th>
+                      <th className="px-3 py-2">Selling price</th>
                       <th className="px-3 py-2">Tax %</th>
                       <th className="px-3 py-2 text-right">Line total</th>
                     </tr>
@@ -832,6 +963,7 @@ export default function PurchasesPage() {
                         <td className="px-3 py-2 text-gray-700">{item.hsnCode || '—'}</td>
                         <td className="px-3 py-2 text-gray-700">{item.qty}</td>
                         <td className="px-3 py-2 text-gray-700">{formatCurrency(item.unitCost ?? 0)}</td>
+                        <td className="px-3 py-2 text-gray-700">{formatCurrency(item.price ?? 0)}</td>
                         <td className="px-3 py-2 text-gray-700">{item.taxRate ?? 0}%</td>
                         <td className="px-3 py-2 text-right font-medium text-gray-900">{formatCurrency(item.total ?? 0)}</td>
                       </tr>
@@ -841,12 +973,33 @@ export default function PurchasesPage() {
               </div>
             </div>
 
+            <div className="grid gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-800 sm:grid-cols-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-gray-600">Purchase bill total</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(selectedPurchase.total)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-gray-600">Selling price total</span>
+                <span className="font-semibold text-gray-900">{formatCurrency(getSellingPriceTotal(selectedPurchase))}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-gray-600">Tax</span>
+                <span>{formatCurrency(selectedPurchase.taxAmount)}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-gray-600">Subtotal</span>
+                <span>{formatCurrency(selectedPurchase.subtotal)}</span>
+              </div>
+            </div>
+
             <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
               Inventory sync: {selectedPurchase.inventoryPostedAt ? `Posted on ${formatDate(selectedPurchase.inventoryPostedAt)}` : 'Not posted yet'}
             </div>
           </div>
         ) : null}
       </Modal>
+
+      {selectedPurchase ? <PurchasePrintPreview purchase={selectedPurchase} /> : null}
     </FeatureGate>
   )
 }
@@ -865,12 +1018,16 @@ function RowActions({
   row,
   onAction,
   onView,
+  onEdit,
+  onPrint,
   onInventoryPost,
   busyId,
 }: {
   row: PurchaseRow
   onAction: (id: string, action: 'approve' | 'send' | 'receive' | 'cancel') => Promise<void>
   onView: (id: string) => Promise<void>
+  onEdit: (id: string) => Promise<void>
+  onPrint: (id: string) => Promise<void>
   onInventoryPost: (id: string) => Promise<void>
   busyId: string | null
 }) {
@@ -937,6 +1094,14 @@ function RowActions({
         >
           <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onView(row._id))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
             <Eye size={14} /> View purchase order
+          </button>
+          {row.status !== 'cancelled' ? (
+            <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onEdit(row._id))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+              <Pencil size={14} /> Edit
+            </button>
+          ) : null}
+          <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onPrint(row._id))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+            <Printer size={14} /> Print
           </button>
           {row.status === 'draft' ? (
             <button type="button" role="menuitem" onClick={() => closeAndRun(() => void onAction(row._id, 'approve'))} disabled={disabled} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40">
@@ -1013,5 +1178,20 @@ function createEmptyItem(): PurchaseItemForm {
 function calculateLineTotal(item: PurchaseItemForm) {
   const base = Math.max(0, item.qty * item.unitCost - item.discountAmount)
   return base + (base * item.taxRate) / 100
+}
+
+function getSellingPriceTotal(purchase: PurchaseRow) {
+  if (typeof purchase.sellingPriceTotal === 'number') return purchase.sellingPriceTotal
+  return purchase.items.reduce(
+    (sum, item) => sum + Number(item.price ?? 0) * Number(item.qty ?? 0),
+    0
+  )
+}
+
+function toDateInputValue(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
 }
 

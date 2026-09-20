@@ -83,7 +83,7 @@ export const purchaseOrderItemSchema = z.object({
   mrpDiscount: z.number().min(0).max(100).default(0),
   price: z.number().min(0).default(0),
   taxRate: z.number().min(0).max(100).default(0),
-  total: z.number().min(0, 'Line total must be zero or more'),
+  total: z.number().min(0, 'Line total must be zero or more').optional().default(0),
 })
 
 export const purchaseOrderSchema = z.object({

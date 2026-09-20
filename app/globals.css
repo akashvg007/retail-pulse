@@ -155,4 +155,23 @@
     width: 58mm;
     max-width: 58mm;
   }
+
+  .purchase-print {
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 8mm 10mm;
+    color: #111827;
+    background: #fff;
+  }
+
+  .purchase-print table {
+    border-collapse: collapse;
+  }
+
+  .purchase-print th,
+  .purchase-print td {
+    padding-top: 2mm;
+    padding-bottom: 2mm;
+  }
 }

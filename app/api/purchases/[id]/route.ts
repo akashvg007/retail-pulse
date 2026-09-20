@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
+import { purchaseOrderSchema } from '@/lib/validations'
+import { computePurchaseTotals, normalizePurchaseLine } from '@/lib/purchase-calculations'
+import {
+  normalizeInventoryPostSummary,
+  postPurchaseItemsToInventory,
+  reconcilePostedPurchaseInventory,
+  withReceivedQuantities,
+  type InventoryPostEntry,
+} from '@/lib/purchase-inventory'
 import { PurchaseOrder } from '@/models/PurchaseOrder'
-import { Product } from '@/models/Product'
+import { Supplier } from '@/models/Supplier'
 
-const updatePurchaseSchema = z.object({
+const actionUpdateSchema = z.object({
   action: z.enum(['approve', 'send', 'receive', 'cancel', 'add_to_inventory']).optional(),
   expectedDeliveryDate: z.string().optional(),
   notes: z.string().optional(),
@@ -58,17 +67,12 @@ function applyAction(order: {
   }
 }
 
-function escapeRegex(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function generateSku(name: string, index: number) {
-  const base = name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '')
-    .slice(0, 6) || 'ITEM'
-  const suffix = String(Date.now() + index).slice(-6)
-  return `${base}-${suffix}`
+function isFullOrderUpdate(body: unknown): body is Record<string, unknown> {
+  return Boolean(
+    body &&
+    typeof body === 'object' &&
+    ('supplierId' in body || 'items' in body || 'invoiceNo' in body)
+  )
 }
 
 export async function GET(
@@ -100,13 +104,140 @@ export async function PATCH(
   if (denied) return denied
 
   const body = await req.json()
-  const parsed = updatePurchaseSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
-
   await connectDB()
   const { id } = await params
   const existing = await PurchaseOrder.findOne({ _id: id, tenantId: ctx.tenantId }).lean()
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  if (isFullOrderUpdate(body)) {
+    const parsed = purchaseOrderSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
+    }
+
+    if (existing.status === 'cancelled') {
+      return NextResponse.json({ error: 'Cancelled orders cannot be edited' }, { status: 400 })
+    }
+
+    const supplier = await Supplier.findOne({
+      _id: parsed.data.supplierId,
+      tenantId: ctx.tenantId,
+      active: true,
+    }).lean()
+    if (!supplier) {
+      return NextResponse.json({ error: 'Supplier not found' }, { status: 404 })
+    }
+
+    const normalizedItems = parsed.data.items.map((item) => normalizePurchaseLine(item))
+    const items = withReceivedQuantities(normalizedItems, existing.status, existing.items)
+    const totals = computePurchaseTotals(items, parsed.data.roundingAdjustment)
+
+    const updates: Record<string, unknown> = {
+      supplierId: supplier._id,
+      invoiceNo: parsed.data.invoiceNo,
+      invoiceDate: new Date(parsed.data.invoiceDate),
+      paymentTerms: parsed.data.paymentTerms,
+      supplierSnapshot: {
+        code: supplier.code,
+        name: supplier.name,
+        email: supplier.email,
+        phone: supplier.phone,
+        gstNumber: supplier.gstNumber,
+      },
+      items,
+      subtotal: totals.subtotal,
+      taxAmount: totals.taxAmount,
+      total: totals.total,
+      sellingPriceTotal: totals.sellingPriceTotal,
+      roundingAdjustment: totals.roundingAdjustment,
+      expectedDeliveryDate: parsed.data.expectedDeliveryDate
+        ? new Date(parsed.data.expectedDeliveryDate)
+        : undefined,
+      notes: parsed.data.notes,
+    }
+
+    if (existing.status === 'received') {
+      updates.receivedValue = totals.total
+    }
+
+    if (existing.inventoryPostedAt) {
+      const inventoryDenied = await requireFeature(ctx, 'inventory')
+      if (inventoryDenied) return inventoryDenied
+
+      const previousEntries = normalizeInventoryPostSummary(
+        existing.inventoryPostSummary as Array<{
+          productId?: string | null
+          name?: string
+          sku?: string | null
+          qtyAdded?: number
+          unitCost?: number
+          price?: number
+          mrp?: number
+          taxRate?: number
+          hsnCode?: string
+        }>,
+        existing.items
+      )
+
+      let nextSummary: InventoryPostEntry[]
+      try {
+        nextSummary = await reconcilePostedPurchaseInventory({
+          tenantId: ctx.tenantId,
+          poNo: existing.poNo,
+          previousEntries,
+          nextItems: items,
+        })
+        updates.inventoryPostSummary = nextSummary
+        updates.items = items.map((item, index) => ({
+          ...item,
+          productId: nextSummary[index]?.productId || item.productId || undefined,
+        }))
+      } catch (reconcileError) {
+        return NextResponse.json(
+          {
+            error:
+              reconcileError instanceof Error
+                ? reconcileError.message
+                : 'Unable to reconcile inventory for this purchase order',
+          },
+          { status: 400 }
+        )
+      }
+
+      const purchaseOrder = await PurchaseOrder.findOneAndUpdate(
+        { _id: id, tenantId: ctx.tenantId },
+        updates,
+        { new: true }
+      ).lean()
+
+      if (!purchaseOrder) {
+        try {
+          await reconcilePostedPurchaseInventory({
+            tenantId: ctx.tenantId,
+            poNo: existing.poNo,
+            previousEntries: nextSummary,
+            nextItems: existing.items,
+          })
+        } catch {
+          // Preserve not-found response if restore also fails.
+        }
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      return NextResponse.json({ data: purchaseOrder })
+    }
+
+    const purchaseOrder = await PurchaseOrder.findOneAndUpdate(
+      { _id: id, tenantId: ctx.tenantId },
+      updates,
+      { new: true }
+    ).lean()
+
+    return NextResponse.json({ data: purchaseOrder })
+  }
+
+  const parsed = actionUpdateSchema.safeParse(body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   const updates: Record<string, unknown> = {}
   if (typeof parsed.data.notes === 'string') updates.notes = parsed.data.notes
@@ -129,65 +260,30 @@ export async function PATCH(
     Object.assign(updates, result)
 
     if (parsed.data.action === 'add_to_inventory') {
-      const itemSummaries = await Promise.all(
-        existing.items.map(async (item, index) => {
-          const qtyToAdd = Math.max(0, Number(item.receivedQty || item.qty || 0))
-          if (qtyToAdd <= 0) {
-            return { name: item.name, sku: null, qtyAdded: 0 }
-          }
-
-          let product = null
-
-          if (item.productId) {
-            product = await Product.findOneAndUpdate(
-              { _id: item.productId, tenantId: ctx.tenantId, active: true },
-              {
-                $inc: { stockQty: qtyToAdd },
-                $set: { cost: item.unitCost, price: item.price, mrp: item.mrp, taxRate: item.taxRate, gstRate: item.taxRate, hsnCode: item.hsnCode },
-              },
-              { new: true }
-            )
-          }
-
-          if (!product) {
-            product = await Product.findOneAndUpdate(
-              {
-                tenantId: ctx.tenantId,
-                active: true,
-                name: { $regex: `^${escapeRegex(item.name)}$`, $options: 'i' },
-              },
-              {
-                $inc: { stockQty: qtyToAdd },
-                $set: { cost: item.unitCost, price: item.price, mrp: item.mrp, taxRate: item.taxRate, gstRate: item.taxRate, hsnCode: item.hsnCode },
-              },
-              { new: true }
-            )
-          }
-
-          if (!product) {
-            product = await Product.create({
-              tenantId: ctx.tenantId,
-              name: item.name,
-              sku: generateSku(item.name, index),
-              description: `Auto-created from ${existing.poNo}`,
-              price: Number(item.price || item.unitCost || 0),
-              cost: Number(item.unitCost || 0),
-              mrp: Number(item.mrp || 0),
-              category: 'Purchased',
-              hsnCode: item.hsnCode,
-              stockQty: qtyToAdd,
-              taxRate: Number(item.taxRate || 0),
-              gstRate: Number(item.taxRate || 0),
-              active: true,
-            })
-          }
-
-          return { name: item.name, sku: product.sku, qtyAdded: qtyToAdd }
+      try {
+        const itemSummaries = await postPurchaseItemsToInventory({
+          tenantId: ctx.tenantId,
+          poNo: existing.poNo,
+          items: existing.items,
         })
-      )
 
-      updates.inventoryPostedAt = new Date()
-      updates.inventoryPostSummary = itemSummaries
+        updates.inventoryPostedAt = new Date()
+        updates.inventoryPostSummary = itemSummaries
+        updates.items = existing.items.map((item, index) => ({
+          ...item,
+          productId: itemSummaries[index]?.productId || item.productId || undefined,
+        }))
+      } catch (inventoryError) {
+        return NextResponse.json(
+          {
+            error:
+              inventoryError instanceof Error
+                ? inventoryError.message
+                : 'Unable to add products to inventory',
+          },
+          { status: 400 }
+        )
+      }
     }
   }
 

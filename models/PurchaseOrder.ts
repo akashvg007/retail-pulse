@@ -45,6 +45,7 @@ export interface IPurchaseOrder extends Document {
   subtotal: number
   taxAmount: number
   total: number
+  sellingPriceTotal: number
   roundingAdjustment: number
   receivedValue: number
   paidAmount: number
@@ -63,9 +64,15 @@ export interface IPurchaseOrder extends Document {
   }
   inventoryPostedAt?: Date
   inventoryPostSummary?: Array<{
+    productId?: mongoose.Types.ObjectId | null
     name: string
     sku: string | null
     qtyAdded: number
+    unitCost?: number
+    price?: number
+    mrp?: number
+    taxRate?: number
+    hsnCode?: string
   }>
   createdAt: Date
   updatedAt: Date
@@ -110,6 +117,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     subtotal: { type: Number, required: true, min: 0 },
     taxAmount: { type: Number, default: 0, min: 0 },
     total: { type: Number, required: true, min: 0 },
+    sellingPriceTotal: { type: Number, default: 0, min: 0 },
     roundingAdjustment: { type: Number, default: 0 },
     receivedValue: { type: Number, default: 0, min: 0 },
     paidAmount: { type: Number, default: 0, min: 0 },
@@ -139,9 +147,15 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
       type: [
         {
           _id: false,
+          productId: { type: Schema.Types.ObjectId, ref: 'Product', default: null },
           name: String,
           sku: String,
           qtyAdded: Number,
+          unitCost: { type: Number, default: 0 },
+          price: { type: Number, default: 0 },
+          mrp: { type: Number, default: 0 },
+          taxRate: { type: Number, default: 0 },
+          hsnCode: { type: String, default: '' },
         },
       ],
       default: [],

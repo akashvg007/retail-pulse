@@ -2,15 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import { requireAuth, requireFeature } from '@/lib/tenant'
 import { purchaseOrderSchema } from '@/lib/validations'
+import { computePurchaseTotals, normalizePurchaseLine } from '@/lib/purchase-calculations'
 import { PurchaseOrder } from '@/models/PurchaseOrder'
 import { Supplier } from '@/models/Supplier'
 import { Tenant } from '@/models/Tenant'
 import { generatePurchaseOrderNo } from '@/lib/utils'
-
-function computeLineTotal(qty: number, unitCost: number, discountAmount: number, taxRate: number) {
-  const base = Math.max(0, qty * unitCost - discountAmount)
-  return base + (base * taxRate) / 100
-}
 
 export async function GET(req: NextRequest) {
   const ctx = await requireAuth()
@@ -67,32 +63,16 @@ export async function POST(req: NextRequest) {
   }
 
   const items = parsed.data.items.map((item) => {
-    const lineValue = item.qty * item.unitCost
-    const discountAmount = item.discountAmount || (lineValue * item.discountPercentage) / 100
-    const discountPercentage = lineValue > 0 ? (discountAmount / lineValue) * 100 : 0
-    const total = computeLineTotal(item.qty, item.unitCost, discountAmount, item.taxRate)
+    const normalized = normalizePurchaseLine(item)
     return {
-      productId: item.productId || undefined,
-      name: item.name,
-      hsnCode: item.hsnCode,
-      qty: item.qty,
+      ...normalized,
+      productId: normalized.productId || undefined,
       receivedQty: 0,
       returnedQty: 0,
-      unitCost: item.unitCost,
-      discountPercentage,
-      discountAmount,
-      mrp: item.mrp,
-      mrpDiscount: item.mrpDiscount,
-      price: item.price,
-      taxRate: item.taxRate,
-      total,
     }
   })
 
-  const subtotal = items.reduce((sum, item) => sum + Math.max(0, item.qty * item.unitCost - item.discountAmount), 0)
-  const calculatedTotal = items.reduce((sum, item) => sum + item.total, 0)
-  const total = Math.max(0, calculatedTotal + parsed.data.roundingAdjustment)
-  const taxAmount = Math.max(0, calculatedTotal - subtotal)
+  const totals = computePurchaseTotals(items, parsed.data.roundingAdjustment)
 
   const tenant = await Tenant.findByIdAndUpdate(
     ctx.tenantId,
@@ -118,10 +98,11 @@ export async function POST(req: NextRequest) {
       gstNumber: supplier.gstNumber,
     },
     items,
-    subtotal,
-    taxAmount,
-    total,
-    roundingAdjustment: parsed.data.roundingAdjustment,
+    subtotal: totals.subtotal,
+    taxAmount: totals.taxAmount,
+    total: totals.total,
+    sellingPriceTotal: totals.sellingPriceTotal,
+    roundingAdjustment: totals.roundingAdjustment,
     expectedDeliveryDate: parsed.data.expectedDeliveryDate
       ? new Date(parsed.data.expectedDeliveryDate)
       : undefined,
