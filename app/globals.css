@@ -165,6 +165,18 @@
     background: #fff;
   }
 
+  .invoice-items-table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  .invoice-items-table th,
+  .invoice-items-table td {
+    border: 1px solid #1f2937;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
   .purchase-print table {
     border-collapse: collapse;
   }

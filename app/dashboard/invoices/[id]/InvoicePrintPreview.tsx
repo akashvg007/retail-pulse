@@ -88,7 +88,7 @@ export default function InvoicePrintPreview({
 
         <div className="flex justify-between text-sm text-gray-700">
           {display.showCustomerDetails &&
-          (<div className="border-b border-gray-200 text-sm text-gray-700">
+          (<div className="text-sm text-gray-700">
             <p className="font-semibold text-gray-900">To</p>
             <p>{customerName || "Walk-in customer"}</p>
             {customerEmail && <p>{customerEmail}</p>}
@@ -103,28 +103,28 @@ export default function InvoicePrintPreview({
         </div>
 
 
-        <table className="w-full text-sm border-y border-gray-200">
+        <table className="invoice-items-table w-full border-collapse border border-gray-800 text-sm">
           <thead>
-            <tr className="text-left text-gray-500">
-              <th className="py-1 font-medium">Item</th>
-              <th className="py-1 font-medium text-right">Qty</th>
-              <th className="py-1 font-medium text-right">MRP</th>
-              <th className="py-1 font-medium text-right">Price</th>
-              {display.showItemTax && <th className="py-1 font-medium text-right">Tax</th>}
-              <th className="py-1 font-medium text-right">Total</th>
+            <tr className="text-left text-gray-700">
+              <th className="border border-gray-800 px-1 py-1 font-medium">Item</th>
+              <th className="border border-gray-800 px-1 py-1 font-medium text-right">Qty</th>
+              <th className="border border-gray-800 px-1 py-1 font-medium text-right">MRP</th>
+              <th className="border border-gray-800 px-1 py-1 font-medium text-right">Price</th>
+              {display.showItemTax && <th className="border border-gray-800 px-1 py-1 font-medium text-right">Tax</th>}
+              <th className="border border-gray-800 px-1 py-1 font-medium text-right">Total</th>
             </tr>
           </thead>
           <tbody>
         {invoice.items.map((item, i) => (
-              <tr key={i} className="border-t border-gray-100">
-                <td className="py-1 text-gray-900">{item.name}</td>
-                <td className="py-1 text-right">{item.qty}</td>
-                <td className="py-1 text-right">{formatCurrency(item.mrp ?? 0)}</td>
-                <td className="py-1 text-right">
+              <tr key={i}>
+                <td className="border border-gray-800 px-1 py-1 text-gray-900">{item.name}</td>
+                <td className="border border-gray-800 px-1 py-1 text-right">{item.qty}</td>
+                <td className="border border-gray-800 px-1 py-1 text-right">{formatCurrency(item.mrp ?? 0)}</td>
+                <td className="border border-gray-800 px-1 py-1 text-right">
                   {formatCurrency(item.price)}
                 </td>
-                {display.showItemTax && <td className="py-1 text-right">{item.taxRate}%</td>}
-                <td className="py-1 text-right font-medium">
+                {display.showItemTax && <td className="border border-gray-800 px-1 py-1 text-right">{item.taxRate}%</td>}
+                <td className="border border-gray-800 px-1 py-1 text-right font-medium">
                   {formatCurrency(item.total)}
                 </td>
               </tr>
@@ -261,7 +261,7 @@ function CustomInvoiceLayout({
       return <div className="text-sm"><p className="font-semibold uppercase tracking-normal text-gray-400">Bill To</p><p className="font-semibold text-gray-900">{customerName || "Walk-in customer"}</p>{customerEmail && <p>{customerEmail}</p>}{display.showCustomerAddress && customerAddress && <p>{customerAddress}</p>}{customerGst && <p>GST: {customerGst}</p>}</div>;
     }
     if (section === "items") {
-      return <table className="w-full text-xs"><thead><tr className="border-y border-gray-200 text-left"><th className="py-1">Item</th><th className="py-1 text-right">Qty</th><th className="py-1 text-right">Price</th><th className="py-1 text-right">Total</th></tr></thead><tbody>{invoice.items.map((item, index) => <tr key={index} className="border-b border-gray-100"><td className="py-1">{item.name}</td><td className="py-1 text-right">{item.qty}</td><td className="py-1 text-right">{formatCurrency(item.price)}</td><td className="py-1 text-right">{formatCurrency(item.total)}</td></tr>)}</tbody></table>;
+      return <table className="invoice-items-table w-full border-collapse border border-gray-800 text-xs"><thead><tr className="text-left"><th className="border border-gray-800 px-1 py-1">Item</th><th className="border border-gray-800 px-1 py-1 text-right">Qty</th><th className="border border-gray-800 px-1 py-1 text-right">Price</th><th className="border border-gray-800 px-1 py-1 text-right">Total</th></tr></thead><tbody>{invoice.items.map((item, index) => <tr key={index}><td className="border border-gray-800 px-1 py-1">{item.name}</td><td className="border border-gray-800 px-1 py-1 text-right">{item.qty}</td><td className="border border-gray-800 px-1 py-1 text-right">{formatCurrency(item.price)}</td><td className="border border-gray-800 px-1 py-1 text-right">{formatCurrency(item.total)}</td></tr>)}</tbody></table>;
     }
     if (section === "totals" && display.showTotals) {
       return <div className="ml-auto w-2/3 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal)}</span></div>{invoice.taxAmount > 0 && (display.showTaxSplit ? <><div className="flex justify-between"><span>CGST ({taxSplit.rate.toFixed(2)}%)</span><span>{formatCurrency(taxSplit.amount)}</span></div><div className="flex justify-between"><span>SGST ({taxSplit.rate.toFixed(2)}%)</span><span>{formatCurrency(taxSplit.amount)}</span></div></> : <div className="flex justify-between"><span>GST ({(taxSplit.rate * 2).toFixed(2)}%)</span><span>{formatCurrency(invoice.taxAmount)}</span></div>)}{invoice.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{formatCurrency(invoice.discount)}</span></div>}<div className="mt-1 flex justify-between border-t border-gray-300 pt-1 font-bold text-gray-900"><span>Total</span><span>{formatCurrency(invoice.total)}</span></div></div>;
@@ -297,7 +297,7 @@ function CustomInvoiceLayout({
           {display.showContactDetails && branding?.phone && <p className="text-xs text-gray-600">Ph: {branding.phone}</p>}
         </div>
 
-        <div className="flex items-start justify-between border-b border-gray-300 py-2 text-xs text-gray-600">
+        <div className="flex items-start justify-between py-2 text-xs text-gray-600">
           <div>
             <p>Bill No: {invoice.invoiceNo}</p>
             <p>Date: {formatDate(invoice.createdAt)}</p>
@@ -305,7 +305,7 @@ function CustomInvoiceLayout({
           {customerGst && <p className="text-right">GST: {customerGst}</p>}
         </div>
 
-        {display.showCustomerDetails && <div className="border-b border-gray-300 py-2 text-xs text-gray-600">
+        {display.showCustomerDetails && <div className="py-2 text-xs text-gray-600">
           <div>
             <p className="font-semibold text-gray-900">To</p>
             <p>{customerName || "Walk-in customer"}</p>
@@ -314,22 +314,22 @@ function CustomInvoiceLayout({
           </div>
         </div>}
 
-        <table className="mt-4 w-full text-xs">
+        <table className="invoice-items-table mt-4 w-full border-collapse border border-gray-900 text-xs">
           <thead>
-            <tr className="border-y border-gray-300">
-              <th className="py-1 text-left font-semibold">Item</th>
-              <th className="py-1 text-right font-semibold">Qty</th>
-              <th className="py-1 text-right font-semibold">MRP</th>
-              <th className="py-1 text-right font-semibold">Total</th>
+            <tr>
+              <th className="border border-gray-900 px-1 py-1 text-left font-semibold">Item</th>
+              <th className="border border-gray-900 px-1 py-1 text-right font-semibold">Qty</th>
+              <th className="border border-gray-900 px-1 py-1 text-right font-semibold">MRP</th>
+              <th className="border border-gray-900 px-1 py-1 text-right font-semibold">Total</th>
             </tr>
           </thead>
           <tbody>
         {invoice.items.map((item, i) => (
-              <tr key={i} className="border-b border-gray-100">
-                <td className="py-1">{item.name}</td>
-                <td className="py-1 text-right">{item.qty}</td>
-                <td className="py-1 text-right">{formatCurrency(item.mrp ?? 0)}</td>
-                <td className="py-1 text-right">
+              <tr key={i}>
+                <td className="border border-gray-900 px-1 py-1">{item.name}</td>
+                <td className="border border-gray-900 px-1 py-1 text-right">{item.qty}</td>
+                <td className="border border-gray-900 px-1 py-1 text-right">{formatCurrency(item.mrp ?? 0)}</td>
+                <td className="border border-gray-900 px-1 py-1 text-right">
                   {formatCurrency(item.total)}
                 </td>
               </tr>
@@ -402,20 +402,30 @@ function CustomInvoiceLayout({
 
           <div className="my-2 border-t border-dashed border-black" />
 
-          {invoice.items.map((item, i) => (
-            <div key={i} className="py-1">
-              <p className="font-semibold">{item.name}</p>
-              <div className="flex justify-between">
-                <span>
-                  {item.qty} x {formatCurrency(item.price)} | MRP {formatCurrency(item.mrp ?? 0)}
-                </span>
-                <span>{formatCurrency(item.total)}</span>
-              </div>
-              {display.showItemTax && item.taxRate > 0 && (
-                <p className="text-[10px]">Tax: {item.taxRate}%</p>
-              )}
-            </div>
-          ))}
+          <table className="invoice-items-table w-full border-collapse border border-gray-800 text-[11px]">
+            <thead>
+              <tr>
+                <th className="border border-gray-800 px-0.5 py-0.5 text-left font-bold">Item</th>
+                <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Qty</th>
+                <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Price</th>
+                <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">MRP</th>
+                {display.showItemTax && <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Tax</th>}
+                <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {invoice.items.map((item, i) => (
+                <tr key={i}>
+                  <td className="border border-gray-800 px-0.5 py-0.5 font-semibold">{item.name}</td>
+                  <td className="border border-gray-800 px-0.5 py-0.5 text-right">{item.qty}</td>
+                  <td className="border border-gray-800 px-0.5 py-0.5 text-right">{formatCurrency(item.price)}</td>
+                  <td className="border border-gray-800 px-0.5 py-0.5 text-right">{formatCurrency(item.mrp ?? 0)}</td>
+                  {display.showItemTax && <td className="border border-gray-800 px-0.5 py-0.5 text-right">{item.taxRate}%</td>}
+                  <td className="border border-gray-800 px-0.5 py-0.5 text-right">{formatCurrency(item.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
           <div className="my-2 border-t border-dashed border-black" />
 
@@ -482,14 +492,26 @@ function CustomInvoiceLayout({
           )}
         </div>
 
-        {invoice.items.map((item, i) => (
-          <div key={i} className="flex justify-between py-0.5">
-            <span className="max-w-[60%] truncate">{item.name}</span>
-            <span>
-              {item.qty} x {formatCurrency(item.price)} | MRP {formatCurrency(item.mrp ?? 0)}
-            </span>
-          </div>
-        ))}
+        <table className="invoice-items-table w-full border-collapse border border-gray-800 text-[10px]">
+          <thead>
+            <tr>
+              <th className="border border-gray-800 px-0.5 py-0.5 text-left font-bold">Item</th>
+              <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Qty</th>
+              <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Price</th>
+              <th className="border border-gray-800 px-0.5 py-0.5 text-right font-bold">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoice.items.map((item, i) => (
+              <tr key={i}>
+                <td className="border border-gray-800 px-0.5 py-0.5">{item.name}</td>
+                <td className="border border-gray-800 px-0.5 py-0.5 text-right">{item.qty}</td>
+                <td className="border border-gray-800 px-0.5 py-0.5 text-right">{formatCurrency(item.price)}</td>
+                <td className="border border-gray-800 px-0.5 py-0.5 text-right">{formatCurrency(item.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
         <div className="my-1 border-t border-dashed border-black" />
 
