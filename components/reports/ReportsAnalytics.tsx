@@ -5,8 +5,11 @@ import { ArrowUpRight, BadgeDollarSign, Banknote, Boxes, FileText, Receipt, Shie
 import { Badge } from '@/components/ui/Badge'
 import { Card, CardHeader, CardBody } from '@/components/ui/Card'
 import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import type { ReportsPageData } from '@/lib/reports-data'
+import { formatDate } from '@/lib/utils'
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('en-IN', {
@@ -36,12 +39,19 @@ export function ReportsAnalytics({ reportData }: { reportData: ReportsPageData }
   const [selectedRange, setSelectedRange] = useState(reportData.appliedFilters.dateRange)
   const [selectedPayment, setSelectedPayment] = useState(reportData.appliedFilters.paymentMode)
   const [selectedCashier, setSelectedCashier] = useState(reportData.appliedFilters.cashierRole)
+  const [selectedStartDate, setSelectedStartDate] = useState(reportData.appliedFilters.startDate ?? '')
+  const [selectedEndDate, setSelectedEndDate] = useState(reportData.appliedFilters.endDate ?? '')
+  const [isCustomRangeOpen, setIsCustomRangeOpen] = useState(false)
+  const [tempStartDate, setTempStartDate] = useState('')
+  const [tempEndDate, setTempEndDate] = useState('')
 
   useEffect(() => {
     const hasFilterChanged =
       selectedRange !== liveData.appliedFilters.dateRange ||
       selectedPayment !== liveData.appliedFilters.paymentMode ||
-      selectedCashier !== liveData.appliedFilters.cashierRole
+      selectedCashier !== liveData.appliedFilters.cashierRole ||
+      selectedStartDate !== (liveData.appliedFilters.startDate ?? '') ||
+      selectedEndDate !== (liveData.appliedFilters.endDate ?? '')
 
     if (!hasFilterChanged) return
 
@@ -55,6 +65,10 @@ export function ReportsAnalytics({ reportData }: { reportData: ReportsPageData }
           paymentMode: selectedPayment,
           cashierRole: selectedCashier,
         })
+        if (selectedRange === 'custom') {
+          if (selectedStartDate) params.set('startDate', selectedStartDate)
+          if (selectedEndDate) params.set('endDate', selectedEndDate)
+        }
         const response = await fetch(`/api/reports?${params.toString()}`, {
           method: 'GET',
           cache: 'no-store',
@@ -75,7 +89,7 @@ export function ReportsAnalytics({ reportData }: { reportData: ReportsPageData }
     void refreshData()
 
     return () => controller.abort()
-  }, [selectedCashier, selectedPayment, selectedRange, liveData.appliedFilters.cashierRole, liveData.appliedFilters.dateRange, liveData.appliedFilters.paymentMode])
+  }, [selectedCashier, selectedPayment, selectedRange, selectedStartDate, selectedEndDate, liveData.appliedFilters.cashierRole, liveData.appliedFilters.dateRange, liveData.appliedFilters.paymentMode, liveData.appliedFilters.startDate, liveData.appliedFilters.endDate])
 
   const chartData = useMemo(() => {
     const data = liveData.revenueData.map((row) => ({ month: row.month, revenue: row.revenue }))
@@ -84,8 +98,17 @@ export function ReportsAnalytics({ reportData }: { reportData: ReportsPageData }
 
   const topProducts = useMemo(() => liveData.topProducts, [liveData.topProducts])
 
-  const dateRangeLabel =
-    liveData.filterOptions.dateRanges.find((range) => range.value === selectedRange)?.label ?? 'This Month'
+  const dateRangeLabel = useMemo(() => {
+    if (selectedRange === 'custom' && (selectedStartDate || selectedEndDate)) {
+      const parts: string[] = []
+      if (selectedStartDate) parts.push(formatDate(selectedStartDate))
+      if (selectedEndDate) parts.push(formatDate(selectedEndDate))
+      return parts.join(' – ')
+    }
+    return (
+      liveData.filterOptions.dateRanges.find((range) => range.value === selectedRange)?.label ?? 'This Month'
+    )
+  }, [selectedRange, selectedStartDate, selectedEndDate, liveData.filterOptions.dateRanges])
   const paymentLabel =
     liveData.filterOptions.paymentModes.find((mode) => mode.value === selectedPayment)?.label ?? 'All'
 
@@ -390,7 +413,15 @@ export function ReportsAnalytics({ reportData }: { reportData: ReportsPageData }
             <button
               key={range.value}
               type="button"
-              onClick={() => setSelectedRange(range.value)}
+              onClick={() => {
+                if (range.value === 'custom') {
+                  setTempStartDate(selectedStartDate)
+                  setTempEndDate(selectedEndDate)
+                  setIsCustomRangeOpen(true)
+                } else {
+                  setSelectedRange(range.value)
+                }
+              }}
               className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
                 selectedRange === range.value
                   ? 'bg-indigo-600 text-white'
@@ -435,6 +466,44 @@ export function ReportsAnalytics({ reportData }: { reportData: ReportsPageData }
 
         {isRefreshing ? <p className="mt-3 text-xs text-gray-500">Refreshing reports...</p> : null}
       </div>
+
+      <Modal
+        open={isCustomRangeOpen}
+        onClose={() => setIsCustomRangeOpen(false)}
+        title="Custom Date Range"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Start date"
+            type="date"
+            value={tempStartDate}
+            onChange={(event) => setTempStartDate(event.target.value)}
+          />
+          <Input
+            label="End date"
+            type="date"
+            value={tempEndDate}
+            onChange={(event) => setTempEndDate(event.target.value)}
+          />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setIsCustomRangeOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setSelectedRange('custom')
+                setSelectedStartDate(tempStartDate)
+                setSelectedEndDate(tempEndDate)
+                setIsCustomRangeOpen(false)
+              }}
+              disabled={!tempStartDate || !tempEndDate}
+            >
+              Apply
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[

@@ -7,7 +7,7 @@ import { Product } from '@/models/Product'
 import type { UserRole } from '@/models/User'
 import { User } from '@/models/User'
 
-export type ReportDateRangeKey = 'today' | 'thisWeek' | 'thisMonth' | 'currentFinancialYear' | 'allTime'
+export type ReportDateRangeKey = 'today' | 'thisWeek' | 'thisMonth' | 'currentFinancialYear' | 'allTime' | 'custom'
 export type ReportPaymentModeKey = 'all' | 'cash' | 'upi' | 'card' | 'credit'
 export type ReportCashierRoleValue = 'all' | `role:${UserRole}` | `staff:${string}`
 
@@ -15,6 +15,8 @@ export type ReportsFilters = {
   dateRange: ReportDateRangeKey
   paymentMode: ReportPaymentModeKey
   cashierRole: ReportCashierRoleValue
+  startDate?: string
+  endDate?: string
 }
 
 export type ReportFilterOption<T extends string = string> = {
@@ -173,7 +175,7 @@ function formatCurrency(value: number) {
 }
 
 function isDateRangeKey(value: string): value is ReportDateRangeKey {
-  return ['today', 'thisWeek', 'thisMonth', 'currentFinancialYear', 'allTime'].includes(value)
+  return ['today', 'thisWeek', 'thisMonth', 'currentFinancialYear', 'allTime', 'custom'].includes(value)
 }
 
 function isPaymentModeKey(value: string): value is ReportPaymentModeKey {
@@ -183,7 +185,11 @@ function isPaymentModeKey(value: string): value is ReportPaymentModeKey {
 function resolveFilters(filters?: Partial<ReportsFilters>): ReportsFilters {
   const resolved: ReportsFilters = { ...DEFAULT_FILTERS }
 
-  if (filters?.dateRange && isDateRangeKey(filters.dateRange)) {
+  if (filters?.dateRange === 'custom') {
+    resolved.dateRange = 'custom'
+    if (filters.startDate) resolved.startDate = filters.startDate
+    if (filters.endDate) resolved.endDate = filters.endDate
+  } else if (filters?.dateRange && isDateRangeKey(filters.dateRange)) {
     resolved.dateRange = filters.dateRange
   }
 
@@ -212,14 +218,30 @@ function buildDateRangeOptions(now: Date): ReportFilterOption<ReportDateRangeKey
     { value: 'thisMonth', label: 'This Month' },
     { value: 'currentFinancialYear', label: getCurrentFinancialYearLabel(now) },
     { value: 'allTime', label: 'All Time' },
+    { value: 'custom', label: 'Custom' },
   ]
 }
 
-function getDateBounds(dateRange: ReportDateRangeKey, now: Date): { start?: Date; end: Date } {
+function getDateBounds(
+  dateRange: ReportDateRangeKey,
+  now: Date,
+  startDate?: string,
+  endDate?: string
+): { start?: Date; end: Date } {
   const end = new Date(now)
 
   if (dateRange === 'allTime') {
     return { end }
+  }
+
+  if (dateRange === 'custom') {
+    const start = startDate ? new Date(startDate) : undefined
+    let customEnd: Date = end
+    if (endDate) {
+      customEnd = new Date(endDate)
+      customEnd.setHours(23, 59, 59, 999)
+    }
+    return { start, end: customEnd }
   }
 
   if (dateRange === 'today') {
@@ -302,7 +324,7 @@ export async function getDashboardReportsData(
 
   const now = new Date()
   const appliedFilters = resolveFilters(filters)
-  const dateBounds = getDateBounds(appliedFilters.dateRange, now)
+  const dateBounds = getDateBounds(appliedFilters.dateRange, now, appliedFilters.startDate, appliedFilters.endDate)
   const tenantObjectId = new mongoose.Types.ObjectId(tenantId)
 
   const [tenantUsers, productRows, productCount, customerCount] = await Promise.all([

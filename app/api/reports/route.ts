@@ -13,6 +13,7 @@ const DATE_RANGE_VALUES: ReportDateRangeKey[] = [
   'thisMonth',
   'currentFinancialYear',
   'allTime',
+  'custom',
 ]
 
 const PAYMENT_MODE_VALUES: ReportPaymentModeKey[] = ['all', 'cash', 'upi', 'card', 'credit']
@@ -28,6 +29,8 @@ export async function GET(req: NextRequest) {
   const rawDateRange = searchParams.get('dateRange')
   const rawPaymentMode = searchParams.get('paymentMode')
   const rawCashierRole = searchParams.get('cashierRole')
+  const rawStartDate = searchParams.get('startDate')
+  const rawEndDate = searchParams.get('endDate')
 
   const dateRange: ReportDateRangeKey | undefined =
     rawDateRange && DATE_RANGE_VALUES.includes(rawDateRange as ReportDateRangeKey)
@@ -44,10 +47,15 @@ export async function GET(req: NextRequest) {
       ? (rawCashierRole as ReportCashierRoleValue)
       : undefined
 
+  const startDate: string | undefined = rawStartDate || undefined
+  const endDate: string | undefined = rawEndDate || undefined
+
   const reportData = await getDashboardReportsData(ctx.tenantId, {
     dateRange,
     paymentMode,
     cashierRole,
+    startDate,
+    endDate,
   })
 
   return NextResponse.json({ data: reportData })
