@@ -2,17 +2,27 @@ import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Search } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import type { ProductData } from './types'
+import type { POSProductCardSize, ProductData } from './types'
 
 interface ProductGridProps {
   products: ProductData[]
   isLoading: boolean
   lastAddedId: string | null
   searchTerm: string
+  cardSize: POSProductCardSize
   onAddToCart: (product: ProductData) => void
 }
 
-export function ProductGrid({ products, isLoading, lastAddedId, searchTerm, onAddToCart }: ProductGridProps) {
+const minimumCardWidths: Record<POSProductCardSize, string> = {
+  xs: '9rem',
+  sm: '11rem',
+  md: '13rem',
+  l: '15rem',
+  xl: '18rem',
+  xxl: '21rem',
+}
+
+export function ProductGrid({ products, isLoading, lastAddedId, searchTerm, cardSize, onAddToCart }: ProductGridProps) {
   return (
     <div className="flex flex-1 flex-col overflow-y-auto p-4 pb-24 sm:p-6 xl:pb-6">
       <div className="mb-6">
@@ -25,7 +35,12 @@ export function ProductGrid({ products, isLoading, lastAddedId, searchTerm, onAd
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+      <div
+        className="grid gap-3"
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${minimumCardWidths[cardSize]}), 1fr))`,
+        }}
+      >
         {isLoading ? (
           Array.from({ length: 8 }).map((_, index) => (
             <div key={index} className="rounded-xl border border-gray-200 bg-white p-4">

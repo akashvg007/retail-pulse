@@ -20,6 +20,7 @@ export interface CartItem {
 
 export type POSQuantityMode = 'buttons' | 'input'
 export type POSPriceMode = 'product' | 'custom'
+export type { POSCartWidth, POSProductCardSize } from '@/types/pos'
 
 export interface CustomerData {
   _id: string

@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db'
 import { requireAuth } from '@/lib/tenant'
 import { Tenant } from '@/models/Tenant'
 import { z } from 'zod'
+import { POS_CART_WIDTHS, POS_PRODUCT_CARD_SIZES } from '@/types/pos'
 
 const invoiceTemplateSectionSchema = z.enum([
   'branding',
@@ -64,6 +65,8 @@ const updateSettingsSchema = z.object({
     pos: z.object({
       quantityMode: z.enum(['buttons', 'input']).optional(),
       priceMode: z.enum(['product', 'custom']).optional(),
+      productCardSize: z.enum(POS_PRODUCT_CARD_SIZES).optional(),
+      cartWidth: z.enum(POS_CART_WIDTHS).optional(),
     }).optional(),
     invoiceDisplay: z.object({
       showCompanyName: z.boolean().optional(),

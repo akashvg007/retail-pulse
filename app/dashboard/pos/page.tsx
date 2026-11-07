@@ -14,6 +14,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { InvoiceData } from '@/app/dashboard/invoices/type'
+import { POS_CART_WIDTHS, POS_PRODUCT_CARD_SIZES, type POSCartWidth, type POSProductCardSize } from '@/types/pos'
 
 const ModalFallback = () => <Skeleton className="h-72 w-full rounded-xl bg-white" />
 const PaymentModal = dynamic(() => import('@/components/pos/PaymentModal').then((m) => m.PaymentModal), { ssr: false, loading: ModalFallback })
@@ -92,6 +93,10 @@ export default function POSPage() {
   const { data: settingsResponse } = useSWR('/api/tenants/settings', fetcher)
   const quantityMode: POSQuantityMode = settingsResponse?.data?.pos?.quantityMode === 'input' ? 'input' : 'buttons'
   const priceMode: POSPriceMode = settingsResponse?.data?.pos?.priceMode === 'custom' ? 'custom' : 'product'
+  const productCardSize: POSProductCardSize =
+    POS_PRODUCT_CARD_SIZES.find((size) => size === settingsResponse?.data?.pos?.productCardSize) ?? 'md'
+  const cartWidth: POSCartWidth =
+    POS_CART_WIDTHS.find((width) => width === settingsResponse?.data?.pos?.cartWidth) ?? '320'
   const allProductsRaw = useMemo<ProductData[]>(() => (Array.isArray(data?.data) ? data.data : []), [data])
   const allProducts = allProductsRaw.filter((p: ProductData) => p.stockQty > 0)
   const customers: CustomerData[] = Array.isArray(customersResponse?.data) ? customersResponse.data : []
@@ -584,6 +589,7 @@ export default function POSPage() {
             isLoading={isLoading}
             lastAddedId={lastAddedId}
             searchTerm={searchTerm}
+            cardSize={productCardSize}
             onAddToCart={addToCart}
           />
         </div>
@@ -602,6 +608,7 @@ export default function POSPage() {
           paying={paying}
           quantityMode={quantityMode}
           priceMode={priceMode}
+          cartWidth={cartWidth}
           onRemoveCustomer={() => {
             setSelectedCustomerId('')
             setCustomerSearch('')
@@ -739,5 +746,3 @@ export default function POSPage() {
     </FeatureGate>
   )
 }
-
-

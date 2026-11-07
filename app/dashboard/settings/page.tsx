@@ -9,6 +9,7 @@ import { uploadImageToCloudinary } from '@/util/common.util'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { SettingsPageSkeleton } from '@/components/loading/PageSkeletons'
 import Link from 'next/link'
+import type { POSCartWidth, POSProductCardSize } from '@/types/pos'
 
 interface SettingsForm {
   name?: string
@@ -20,6 +21,8 @@ interface SettingsForm {
   pos: {
     quantityMode: 'buttons' | 'input'
     priceMode: 'product' | 'custom'
+    productCardSize: POSProductCardSize
+    cartWidth: POSCartWidth
   }
   invoiceDisplay: {
     showCompanyName: boolean
@@ -72,6 +75,8 @@ export default function SettingsPage() {
         pos: {
           quantityMode: data?.pos?.quantityMode ?? 'buttons',
           priceMode: data?.pos?.priceMode ?? 'product',
+          productCardSize: data?.pos?.productCardSize ?? 'md',
+          cartWidth: data?.pos?.cartWidth ?? '320',
         },
         invoiceDisplay: {
           showCompanyName: data?.invoiceDisplay?.showCompanyName ?? true,
@@ -218,7 +223,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="space-y-4 border-b pb-6">
-              <h3 className="text-sm font-semibold text-gray-700">Point of Sale</h3>
+              <h3 className="text-sm font-semibold text-gray-700">POS Config</h3>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="text-sm font-medium text-gray-700">Quantity entry</label>
@@ -232,6 +237,30 @@ export default function SettingsPage() {
                   <select className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('pos.priceMode')}>
                     <option value="product">Use product price</option>
                     <option value="custom">Allow custom price</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Product grid size</label>
+                  <select className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('pos.productCardSize')}>
+                    <option value="xs">XS</option>
+                    <option value="sm">SM</option>
+                    <option value="md">MD</option>
+                    <option value="l">L</option>
+                    <option value="xl">XL</option>
+                    <option value="xxl">XXL</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Cart section width</label>
+                  <select className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" {...register('pos.cartWidth')}>
+                    <option value="320">320 px (Default)</option>
+                    <option value="360">360 px</option>
+                    <option value="400">400 px</option>
+                    <option value="440">440 px</option>
+                    <option value="500">500 px</option>
+                    <option value="650">650 px</option>
+                    <option value="800">800 px</option>
+                    <option value="1000">1000 px</option>
                   </select>
                 </div>
               </div>
@@ -400,4 +429,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-

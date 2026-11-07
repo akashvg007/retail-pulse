@@ -951,6 +951,7 @@ export default function PurchasesPage() {
                       <th className="px-3 py-2">HSN</th>
                       <th className="px-3 py-2">Qty</th>
                       <th className="px-3 py-2">Unit cost</th>
+                      <th className="px-3 py-2">MRP</th>
                       <th className="px-3 py-2">Selling price</th>
                       <th className="px-3 py-2">Tax %</th>
                       <th className="px-3 py-2 text-right">Line total</th>
@@ -963,6 +964,7 @@ export default function PurchasesPage() {
                         <td className="px-3 py-2 text-gray-700">{item.hsnCode || '—'}</td>
                         <td className="px-3 py-2 text-gray-700">{item.qty}</td>
                         <td className="px-3 py-2 text-gray-700">{formatCurrency(item.unitCost ?? 0)}</td>
+                        <td className="px-3 py-2 text-gray-700">{formatCurrency(item.mrp ?? 0)}</td>
                         <td className="px-3 py-2 text-gray-700">{formatCurrency(item.price ?? 0)}</td>
                         <td className="px-3 py-2 text-gray-700">{item.taxRate ?? 0}%</td>
                         <td className="px-3 py-2 text-right font-medium text-gray-900">{formatCurrency(item.total ?? 0)}</td>
@@ -1194,4 +1196,3 @@ function toDateInputValue(value?: string) {
   if (Number.isNaN(date.getTime())) return ''
   return date.toISOString().slice(0, 10)
 }
-

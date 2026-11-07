@@ -83,6 +83,7 @@ export default function PurchasePrintPreview({ purchase }: { purchase: PurchaseP
             <th className="py-1 font-medium">HSN</th>
             <th className="py-1 font-medium text-right">Qty</th>
             <th className="py-1 font-medium text-right">Purchase rate</th>
+            <th className="py-1 font-medium text-right">MRP</th>
             <th className="py-1 font-medium text-right">Disc</th>
             <th className="py-1 font-medium text-right">Tax %</th>
             <th className="py-1 font-medium text-right">Selling price</th>
@@ -96,6 +97,7 @@ export default function PurchasePrintPreview({ purchase }: { purchase: PurchaseP
               <td className="py-1 text-gray-700">{item.hsnCode || '—'}</td>
               <td className="py-1 text-right text-gray-700">{item.qty}</td>
               <td className="py-1 text-right text-gray-700">{formatCurrency(item.unitCost ?? 0)}</td>
+              <td className="py-1 text-right text-gray-700">{formatCurrency(item.mrp ?? 0)}</td>
               <td className="py-1 text-right text-gray-700">
                 {formatCurrency(item.discountAmount ?? 0)}
                 {item.discountPercentage ? ` (${item.discountPercentage}%)` : ''}

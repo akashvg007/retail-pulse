@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from 'mongoose'
+import { POS_CART_WIDTHS, POS_PRODUCT_CARD_SIZES, type POSCartWidth, type POSProductCardSize } from '@/types/pos'
 
 export interface IBrandingSettings {
   businessLogo?: string // base64 or S3 URL
@@ -60,6 +61,8 @@ export interface IInvoiceTemplateSettings {
 export interface IPOSSettings {
   quantityMode: 'buttons' | 'input'
   priceMode: 'product' | 'custom'
+  productCardSize: POSProductCardSize
+  cartWidth: POSCartWidth
 }
 
 export interface ITenant extends Document {
@@ -98,6 +101,8 @@ const TenantSchema = new Schema<ITenant>(
       pos: {
         quantityMode: { type: String, enum: ['buttons', 'input'], default: 'buttons' },
         priceMode: { type: String, enum: ['product', 'custom'], default: 'product' },
+        productCardSize: { type: String, enum: [...POS_PRODUCT_CARD_SIZES], default: 'md' },
+        cartWidth: { type: String, enum: [...POS_CART_WIDTHS], default: '320' },
       },
       branding: {
         businessLogo: String,

@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Minus, Plus, Trash2, X } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import type { CartItem, CustomerData, POSPriceMode, POSQuantityMode } from './types'
+import type { CartItem, CustomerData, POSCartWidth, POSPriceMode, POSQuantityMode } from './types'
 
 interface CartPanelProps {
   cart: CartItem[]
@@ -18,6 +18,7 @@ interface CartPanelProps {
   paying: boolean
   quantityMode: POSQuantityMode
   priceMode: POSPriceMode
+  cartWidth: POSCartWidth
   onRemoveCustomer: () => void
   onSearchCustomer: (value: string) => void
   onSelectCustomer: (customerId: string) => void
@@ -43,6 +44,7 @@ export function CartPanel({
   paying,
   quantityMode,
   priceMode,
+  cartWidth,
   onRemoveCustomer,
   onSearchCustomer,
   onSelectCustomer,
@@ -64,7 +66,10 @@ export function CartPanel({
   })
 
   return (
-    <div className="hidden xl:flex w-full flex-col border-t border-gray-200 bg-white xl:w-80 xl:border-l xl:border-t-0">
+    <div
+      className="hidden w-full flex-col border-t border-gray-200 bg-white xl:flex xl:flex-none xl:border-l xl:border-t-0"
+      style={{ width: `${cartWidth}px` }}
+    >
       <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-4">
         <span className="font-semibold text-gray-900">Cart ({cart.length})</span>
       </div>
